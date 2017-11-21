@@ -1,0 +1,3 @@
+import cv2
+
+c = cv2.VideoCapture(cam)
