@@ -10,10 +10,10 @@ def StereoCalibFrameCap():
     cv2.namedWindow('Left Camera')
     cv2.namedWindow('Right Capture')
     cv2.namedWindow('Left Capture')
-    cv2.moveWindow('Right Camera',200,200)
-    cv2.moveWindow('Left Camera',frame.shape[1]+18+20,200)
-    cv2.moveWindow('Right Capture',200,frame.shape[0]+42+200)
-    cv2.moveWindow('Left Capture',frame.shape[1]+18+200,frame.shape[0]+42+200)
+    cv2.moveWindow('Right Camera',20,100)
+    cv2.moveWindow('Left Camera',frame.shape[1]+18+20,20)
+    cv2.moveWindow('Right Capture',20,frame.shape[0]+42+20)
+    cv2.moveWindow('Left Capture',frame.shape[1]+18+20,frame.shape[0]+42+20)
 
     numFrames = 20
     num_horiz = 8
