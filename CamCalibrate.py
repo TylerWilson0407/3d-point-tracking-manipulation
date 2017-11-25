@@ -41,7 +41,7 @@ def HSVcalib(cam,pct_low,pct_hi,h_ext,s_ext,v_ext,targetName):
         cv2.moveWindow('camera',20,20)
 
         # mouse callback to select ROI
-        cv2.setMouseCallback('camera',mouseCallFunc,param=None);
+        cv2.setMouseCallback('camera',mouseCallFunc,param=None)
 
         # while loop once ROI is selected
         while roiSelected:
