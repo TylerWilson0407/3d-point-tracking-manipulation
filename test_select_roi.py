@@ -1,6 +1,6 @@
+from config import config
 import cv2
 import numpy as np
-import pickle
 
 im_num = 1
 leftright = 'L'
@@ -9,7 +9,6 @@ imfile = r'test_images\ballcalib_' + str(im_num) + '_' + leftright + '.bmp'
 frame = cv2.imread(imfile)
 
 
-# noinspection PyUnusedLocal
 def roi_mouse_callback(event, x, y, flags, params):
     """Mouse callback function for selecting a region on interest on a frame"""
     if event == cv2.EVENT_LBUTTONDOWN and not params['drag']:
@@ -84,52 +83,52 @@ def get_roi(frame):
     cv2.destroyAllWindows()
     return roi
 
+
 def find_circle(img):
     """Find largest circle in input image."""
-    max_radius = np.int8(np.around(np.min([img.shape[0], img.shape[1]]))
-                             / 2)
-    long_side = np.min([img.shape[0], img.shape[1]])
-    # REPLACE (5,5) WITH SETTINGS VALUES
-    img_blur = cv2.blur(img, (5, 5))
+
+    cf = config['find_circle']
+
+    short_side = min([img.shape[0], img.shape[1]])
+    long_side = max([img.shape[0], img.shape[1]])
+    max_radius = short_side // 2
+    img_blur = cv2.blur(img, (cf['BLUR_K'], cf['BLUR_K']))
     img_gray = cv2.cvtColor(img_blur, cv2.COLOR_BGR2GRAY)
-    # REPLACE HARDCODES WITH SETTINGS VALUES
-    circle = cv2.HoughCircles(img_gray, cv2.HOUGH_GRADIENT,
-                               dp=1.2,
-                               minDist=long_side + 1,
-                               param1=150, param2=1,
-                               minRadius=max_radius // 2,
+    circles = cv2.HoughCircles(img_gray, cv2.HOUGH_GRADIENT,
+                               dp=cf['HOUGH_DP'],
+                               minDist=long_side,
+                               param1=cf['HOUGH_PARAM1'],
+                               param2=cf['HOUGH_PARAM2'],
                                maxRadius=max_radius)
-    return circle[0][0]
+    ### ADD PRINT STATEMENTS HERE TO SAY WHETHER CIRCLE WAS FOUND OR NOT
+    if np.any(circles):
+        circle = circles[0][0]
+    else:
+        circle = np.array([img.shape[1] / 2],
+                          [img.shape[1] / 2],
+                          short_side * 0.75)
+    return circle
 
-class RoiCircle:
-    def __init__(self, x, y, r):
-        self.x = x
-        self.y = y
-        self.r = r
+def empty_callback(*_, **__):
+    """Empty callback function for passing to functions that require a
+    callback.  Accepts any argument and returns None.
+    """
+    return None
 
-    def x_incr(self, incr):
-        self.x += incr
-
-    def y_incr(self, incr):
-        self.y += incr
-
-    def r_incr(self, incr):
-        self.r += incr
 
 def adjust_circle(img, initial_circle):
     """Manually adjust a circle on an image"""
     keypress = -1
     img_circ = np.copy(img)
+    # Set max radius of circle as half of the longest side of image
     max_radius = np.max([img.shape[0], img.shape[1]]) // 2
     cv2.namedWindow('Adjust circle')
-    # empty callback function
-    callback = lambda *_, **__: None
     cv2.createTrackbar('x', 'Adjust circle',
-                       initial_circle[0], img.shape[1], callback)
+                       initial_circle[0], img.shape[1], empty_callback)
     cv2.createTrackbar('y', 'Adjust circle',
-                       initial_circle[1], img.shape[0], callback)
+                       initial_circle[1], img.shape[0], empty_callback)
     cv2.createTrackbar('r', 'Adjust circle',
-                       initial_circle[2], max_radius, callback)
+                       initial_circle[2], max_radius, empty_callback)
     while keypress == -1:
         cv2.circle(img_circ,
                    (cv2.getTrackbarPos('x', 'Adjust circle'),
