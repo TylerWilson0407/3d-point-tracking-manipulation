@@ -1,1 +1,1 @@
-{"find_circle": {"BLUR_K": 1, "HOUGH_DP": 1.2, "HOUGH_PARAM1": 150, "HOUGH_PARAM2": 1}}
+{"windows": {"ORIGIN_X": 20, "ORIGIN_Y": 200}, "roi": {"ADJUST_SCALE": 2}, "find_circle": {"BLUR_K": 1, "HOUGH_DP": 1.2, "HOUGH_PARAM1": 150, "HOUGH_PARAM2": 1}}

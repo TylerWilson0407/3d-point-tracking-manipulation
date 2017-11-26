@@ -6,6 +6,13 @@ with open('config.json', 'r') as f:
 def config_build():
     config = {}
 
+    # WINDOW SETTINGS
+    config['windows'] = {'ORIGIN_X': 20,
+                         'ORIGIN_Y': 200}
+
+    #ROI SETTINGS
+    config['roi'] = {'ADJUST_SCALE': 2}
+
     # find_circle SETTINGS
     config['find_circle'] = {'BLUR_K': 1,
                              'HOUGH_DP': 1.2,
