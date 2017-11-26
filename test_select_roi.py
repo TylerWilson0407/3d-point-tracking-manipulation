@@ -2,6 +2,7 @@ from config import config
 import cv2
 import numpy as np
 
+
 im_num = 1
 leftright = 'L'
 imfile = r'test_images/ballcalib_' + str(im_num) + '_' + leftright + '.bmp'
@@ -207,11 +208,12 @@ def adjust_circle(img, initial_circle):
     cv2.namedWindow(wd_adjcir)
     cv2.resizeWindow(wd_adjcir, 200, 200)
     cv2.createTrackbar('x', wd_adjcir,
-                       initial_circle[0], img.shape[1], empty_callback)
+                       initial_circle[0][0], img.shape[1], empty_callback)
     cv2.createTrackbar('y', wd_adjcir,
-                       initial_circle[1], img.shape[0], empty_callback)
+                       initial_circle[0][1
+                       ], img.shape[0], empty_callback)
     cv2.createTrackbar('r', wd_adjcir,
-                       initial_circle[2], max_radius, empty_callback)
+                       initial_circle[1], max_radius, empty_callback)
     while keypress == -1:
         cv2.circle(img_circ,
                    (cv2.getTrackbarPos('x', wd_adjcir),
