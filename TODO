@@ -1,0 +1,5 @@
+Fixes & Improvements
+- For select_circle routine and subroutines, add messages with how to proceed
+or escape functions, as well as improving how to "escape" them, with error
+handling and print statements stating if the process was quit/interupted and
+maybe the output if finished.

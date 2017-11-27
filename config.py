@@ -11,7 +11,8 @@ def config_build():
                          'ORIGIN_Y': 200}
 
     #ROI SETTINGS
-    config['roi'] = {'ADJUST_SCALE': 2}
+    config['roi'] = {'ADJUST_SCALE': 2,
+                     'PADDING': 1.5}
 
     # find_circle SETTINGS
     config['find_circle'] = {'BLUR_K': 1,
