@@ -3,3 +3,5 @@ Fixes & Improvements
 or escape functions, as well as improving how to "escape" them, with error
 handling and print statements stating if the process was quit/interupted and
 maybe the output if finished.
+- Change settings for lines/circles/anything from hardcoded values to
+variables fetched from the config file

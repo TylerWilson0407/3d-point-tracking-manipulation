@@ -10,6 +10,7 @@ def test_frame():
 
     return cv2.imread(imfile)
 
+
 def circle_mouse_callback(event, x, y, flags, params):
     """Mouse callback function for selecting a circle on a frame by dragging
     from the center to the edge"""
@@ -55,7 +56,7 @@ def drag_circle(img):
             cv2.circle(circ_img,
                        tuple(cb_params['point1']),
                        radius,
-                       255, 2, 8, 0)
+                       (0, 0, 0), 1, 8, 0)
             cv2.imshow(wd_frame, circ_img)
 
         center = cb_params['point1']
@@ -114,7 +115,7 @@ def adjust_circle(image, roi, roi_origin, initial_circle):
                    (cv2.getTrackbarPos('x', wd_adjcir),
                     cv2.getTrackbarPos('y', wd_adjcir)),
                    cv2.getTrackbarPos('r', wd_adjcir),
-                   255,
+                   (0, 0, 0),
                    1)
         cv2.imshow(wd_adjcir, img_circ)
         img_circ = np.copy(roi)
@@ -123,9 +124,11 @@ def adjust_circle(image, roi, roi_origin, initial_circle):
     if keypress == 27:
         return None
 
-    adj_circle = ((cv2.getTrackbarPos('x', wd_adjcir),
-                   cv2.getTrackbarPos('y', wd_adjcir)),
-                  cv2.getTrackbarPos('r', wd_adjcir))
+    adj_circle = ((cv2.getTrackbarPos('x', wd_adjcir) // scale +
+                   roi_origin[1],
+                   cv2.getTrackbarPos('y', wd_adjcir) // scale +
+                   roi_origin[0]),
+                  cv2.getTrackbarPos('r', wd_adjcir) // scale)
 
     cv2.destroyWindow(wd_adjcir)
     return adj_circle
@@ -154,15 +157,28 @@ def select_circle(image):
     adjusting the circle.  Returns (EXPAND HERE)
     """
     confirmed = False
-    roi = None
-    roi_origin = None
-    circle = None
+    circle_adj = None
 
     while not confirmed:
         circle = drag_circle(image)
         roi, roi_origin = get_circle_roi(image, circle)
-        adjust_circle(image, roi, roi_origin, circle)
+        circle_adj = adjust_circle(image, roi, roi_origin, circle)
         confirmed = gui_functions.button_confirm()
+
+    return circle_adj
+
+
+def circle_mask(image, circle):
+    """Create a binary mask where all points outside the input circle are
+    set to zero(black).
+    """
+    mask = np.zeros_like(image)
+    cv2.circle(mask, circle[0], circle[1], (1, 1, 1), -1)
+    return image * mask
 
 
 test_circle = select_circle(test_frame())
+print(test_circle)
+mask_circ = circle_mask(test_frame(), test_circle)
+cv2.imshow('masked circle', mask_circ)
+cv2.waitKey(0)

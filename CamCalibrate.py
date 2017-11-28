@@ -119,7 +119,7 @@ def HSVcalib(cam,pct_low,pct_hi,h_ext,s_ext,v_ext,targetName):
     try:
         HSVvalues
     except NameError:
-        print "Region not selected for calibration"
+        print("Region not selected for calibration")
         cv2.destroyAllWindows()
         c.release()
         raise SystemExit
