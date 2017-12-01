@@ -4,7 +4,8 @@ import cv2
 import numpy as np
 
 # for testing
-# import matplotlib.pyplot as plt
+import PyQt5
+import matplotlib.pyplot as plt
 
 def test_frame():
     im_num = 1
@@ -198,8 +199,6 @@ roi_h = cv2.split(roi_hsv)[0]
 roi_s = cv2.split(roi_hsv)[1]
 roi_v = cv2.split(roi_hsv)[2]
 
-iHeight,iWidth,iDepth = roi_hsv.shape
-# h = np.zeros((iHeight,iWidth,iDepth))
 h = np.zeros([256, 256,3])
 bins = np.arange(256).reshape(256,1)
 color = [ (255,0,0),(0,255,0),(0,0,255)]
@@ -250,11 +249,13 @@ def get_percentile_bin(hist, pct):
     bin_id = np.searchsorted(cs, np.percentile(cs, pct))
     return bin_id
 
-test_bin1 = get_percentile_bin(test_hist[0], 10)
+test_bin1 = get_percentile_bin(test_hist[0], 5)
 test_bin2 = get_percentile_bin(test_hist[0], 95)
 print(test_hist[0])
 print(test_bin1, test_bin2)
 print(test_hist[0][test_bin1], test_hist[0][test_bin2])
 
-
+plt.plot(test_hist[0])
+plt.plot(np.cumsum(test_hist[0]))
+plt.show()
 ###
