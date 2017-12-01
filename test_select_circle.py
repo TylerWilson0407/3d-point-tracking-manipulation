@@ -3,6 +3,9 @@ import gui_functions
 import cv2
 import numpy as np
 
+# for testing
+# import matplotlib.pyplot as plt
+
 def test_frame():
     im_num = 1
     leftright = 'L'
@@ -174,11 +177,84 @@ def circle_mask(image, circle):
     """
     mask = np.zeros_like(image)
     cv2.circle(mask, circle[0], circle[1], (1, 1, 1), -1)
-    return image * mask
+    masked = image * mask
+    return masked
 
 
-test_circle = select_circle(test_frame())
+image = test_frame()
+test_circle = select_circle(image)
 print(test_circle)
-mask_circ = circle_mask(test_frame(), test_circle)
+mask_circ = circle_mask(image, test_circle)
+# mask_circ = image
 cv2.imshow('masked circle', mask_circ)
 cv2.waitKey(0)
+
+image_hsv = cv2.cvtColor(mask_circ, cv2.COLOR_BGR2HSV)
+print(image_hsv)
+
+###
+roi_hsv = cv2.cvtColor(mask_circ,cv2.COLOR_BGR2HSV)
+roi_h = cv2.split(roi_hsv)[0]
+roi_s = cv2.split(roi_hsv)[1]
+roi_v = cv2.split(roi_hsv)[2]
+
+iHeight,iWidth,iDepth = roi_hsv.shape
+# h = np.zeros((iHeight,iWidth,iDepth))
+h = np.zeros([256, 256,3])
+bins = np.arange(256).reshape(256,1)
+color = [ (255,0,0),(0,255,0),(0,0,255)]
+
+test_hist = np.zeros([3, 256, 1])
+
+for ch,col in enumerate(color):
+    hist_item = cv2.calcHist([roi_hsv],[ch],None,[256],[0,255])
+    hist_item[0, :] = 0
+    hist_item = np.int32(hist_item)
+    hist_item_norm = cv2.normalize(hist_item,0,255,
+                                 cv2.NORM_MINMAX)
+    hist=np.int32(np.around(hist_item_norm))
+    pts = np.column_stack((bins,hist))
+    cv2.polylines(h,[pts],False,col)
+    test_hist[ch] = hist_item
+
+h = np.flipud(h)
+
+cv2.imshow('crop',mask_circ)
+cv2.imshow('roi hue',roi_h)
+cv2.imshow('roi sat',roi_s)
+cv2.imshow('roi val',roi_v)
+cv2.imshow('colorhist',h)
+cv2.moveWindow('crop', image.shape[1] + 18 * 1 + 200, 200)
+cv2.moveWindow('roi hue', image.shape[1] + mask_circ.shape[1] + 18 * 2 +
+               200, 200)
+cv2.moveWindow('roi sat', image.shape[1] + 18 * 1 + 200, mask_circ.shape[0]
+               + 200)
+cv2.moveWindow('roi val', image.shape[1] + mask_circ.shape[1] + 18 * 2 + 200,
+               mask_circ.shape[0] + 200)
+cv2.moveWindow('colorhist', image.shape[1] + 2 * mask_circ.shape[1] + 18 * 3
+               + 200,
+               200)
+if h.shape[0] < 256 and h.shape[1] < 256:
+    h = h[0:255, 0:255]
+    cv2.resizeWindow('colorhist', 256, 256)
+cv2.waitKey(0)
+
+perc_range = range(101)
+perc_vals = np.zeros(101)
+for i in perc_range:
+    perc_vals[i] = np.percentile(roi_h, i)
+
+def get_percentile_bin(hist, pct):
+    cs = np.cumsum(hist)
+    print(cs)
+    bin_id = np.searchsorted(cs, np.percentile(cs, pct))
+    return bin_id
+
+test_bin1 = get_percentile_bin(test_hist[0], 10)
+test_bin2 = get_percentile_bin(test_hist[0], 95)
+print(test_hist[0])
+print(test_bin1, test_bin2)
+print(test_hist[0][test_bin1], test_hist[0][test_bin2])
+
+
+###
