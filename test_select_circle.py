@@ -3,9 +3,12 @@ import gui_functions
 import cv2
 import numpy as np
 
-# for testing
-import PyQt5
-import matplotlib.pyplot as plt
+class TrackingTarget():
+    def __init__(self, cam_feed):
+        self.c = cam_feed
+
+    def calibrate(self):
+        pass
 
 def test_frame():
     im_num = 1
@@ -15,7 +18,7 @@ def test_frame():
     return cv2.imread(imfile)
 
 
-def circle_mouse_callback(event, x, y, flags, params):
+def circle_mouse_callback(event, x, y, params):
     """Mouse callback function for selecting a circle on a frame by dragging
     from the center to the edge"""
     if event == cv2.EVENT_LBUTTONDOWN and not params['drag']:
@@ -90,7 +93,7 @@ def empty_callback(*_, **__):
     return None
 
 
-def adjust_circle(image, roi, roi_origin, initial_circle):
+def adjust_circle(roi, roi_origin, initial_circle):
     """Manually adjust a circle on an image"""
 
     circle_local = initial_circle
@@ -166,7 +169,7 @@ def select_circle(image):
     while not confirmed:
         circle = drag_circle(image)
         roi, roi_origin = get_circle_roi(image, circle)
-        circle_adj = adjust_circle(image, roi, roi_origin, circle)
+        circle_adj = adjust_circle(roi, roi_origin, circle)
         confirmed = gui_functions.button_confirm()
 
     return circle_adj
@@ -176,86 +179,123 @@ def circle_mask(image, circle):
     """Create a binary mask where all points outside the input circle are
     set to zero(black).
     """
+    center = circle[0]
+    radius = circle[1]
+
+    padding = config['roi']['PADDING']
+    pad_radius = int(padding * radius)
+
     mask = np.zeros_like(image)
-    cv2.circle(mask, circle[0], circle[1], (1, 1, 1), -1)
+    cv2.circle(mask, center, radius, (1, 1, 1), -1)
+    # reversed because circle center is indexed (x, y) where image is (y, x)
+    roi_min = reversed(np.subtract(center, pad_radius))
+    roi_max = reversed(np.add(center, pad_radius))
+    frame_min = [0, 0]
+    frame_max = image.shape
+    mins = [max(*v) for v in zip(roi_min, frame_min)]
+    maxs = [min(*v) for v in zip(roi_max, frame_max)]
     masked = image * mask
-    return masked
+    return masked[mins[0]: maxs[0], mins[1]: maxs[1]]
 
 
-image = test_frame()
-test_circle = select_circle(image)
-print(test_circle)
-mask_circ = circle_mask(image, test_circle)
-# mask_circ = image
-cv2.imshow('masked circle', mask_circ)
+def channel_percentile(channel, percentile, rem_zero=True):
+    """Returns a percentile value for a single-channel image.  Optional
+    parameter rem_zero will remove all zero values before calculating the
+    percentile."""
+    flat_vals = np.ndarray.flatten(channel)
+    sorted_vals = np.sort(flat_vals)
+
+    if rem_zero:
+        values = np.trim_zeros(sorted_vals)
+    else:
+        values = sorted_vals
+
+    perc_vals = []
+    for perc in percentile:
+        perc_vals.append(np.int(np.percentile(values, perc)))
+
+    return perc_vals
+
+
+# def get_percentile_bin(hist, pct):
+#     cs = np.cumsum(hist)
+#     bin_id = np.searchsorted(cs, np.percentile(cs, pct))
+#     return bin_id
+
+# image = test_frame()
+# test_circle = select_circle(image)
+# print(test_circle)
+# mask_circ = circle_mask(image, test_circle)
+#
+# cv2.imshow('masked circle', mask_circ)
+# cv2.waitKey(0)
+#
+# np.save('test_roi_save', mask_circ)
+# np.save('test_image_save', image)
+#
+#
+# image_hsv = cv2.cvtColor(mask_circ, cv2.COLOR_BGR2HSV)
+#
+# roi_hsv = cv2.cvtColor(mask_circ,cv2.COLOR_BGR2HSV)
+# roi_h = cv2.split(roi_hsv)[0]
+# roi_s = cv2.split(roi_hsv)[1]
+# roi_v = cv2.split(roi_hsv)[2]
+#
+#
+# ch_perc = channel_percentile(roi_h, [5, 95])
+#
+# h = np.zeros([256, 256,3])
+# bins = np.arange(256).reshape(256,1)
+# color = [ (255,0,0),(0,255,0),(0,0,255)]
+#
+# test_hist = np.zeros([3, 256, 1])
+#
+# for ch,col in enumerate(color):
+#     hist_item = cv2.calcHist([roi_hsv],[ch],None,[256],[0,255])
+#     hist_item[0, :] = 0
+#     hist_item = np.int32(hist_item)
+#     hist_item_norm = cv2.normalize(hist_item,0,255,
+#                                  cv2.NORM_MINMAX)
+#     hist=np.int32(np.around(hist_item_norm))
+#     pts = np.column_stack((bins,hist))
+#     cv2.polylines(h,[pts],False,col)
+#     test_hist[ch] = hist_item
+#
+# h = np.flipud(h)
+#
+# cv2.imshow('crop',mask_circ)
+# cv2.imshow('roi hue',roi_h)
+# cv2.imshow('roi sat',roi_s)
+# cv2.imshow('roi val',roi_v)
+# cv2.imshow('colorhist',h)
+# cv2.moveWindow('crop', image.shape[1] + 18 * 1 + 200, 200)
+# cv2.moveWindow('roi hue', image.shape[1] + mask_circ.shape[1] + 18 * 2 +
+#                200, 200)
+# cv2.moveWindow('roi sat', image.shape[1] + 18 * 1 + 200, mask_circ.shape[0]
+#                + 200)
+# cv2.moveWindow('roi val', image.shape[1] + mask_circ.shape[1] + 18 * 2 + 200,
+#                mask_circ.shape[0] + 200)
+# cv2.moveWindow('colorhist', image.shape[1] + 2 * mask_circ.shape[1] + 18 * 3
+#                + 200,
+#                200)
+# if h.shape[0] < 256 and h.shape[1] < 256:
+#     h = h[0:255, 0:255]
+#     cv2.resizeWindow('colorhist', 256, 256)
+# cv2.waitKey(0)
+#
+# perc_range = range(101)
+# perc_vals = np.zeros(101)
+# for i in perc_range:
+#     perc_vals[i] = np.percentile(roi_h, i)
+#
+# a = test_hist[0]
+# nz_hist = np.all(a == 0)
+# print(nz_hist)
+#
+# print(ch_perc)
+# print(a[ch_perc[0]], a[ch_perc[1]])
+#
+# ###
+
+c = cv2.VideoCapture(0)
 cv2.waitKey(0)
-
-image_hsv = cv2.cvtColor(mask_circ, cv2.COLOR_BGR2HSV)
-print(image_hsv)
-
-###
-roi_hsv = cv2.cvtColor(mask_circ,cv2.COLOR_BGR2HSV)
-roi_h = cv2.split(roi_hsv)[0]
-roi_s = cv2.split(roi_hsv)[1]
-roi_v = cv2.split(roi_hsv)[2]
-
-h = np.zeros([256, 256,3])
-bins = np.arange(256).reshape(256,1)
-color = [ (255,0,0),(0,255,0),(0,0,255)]
-
-test_hist = np.zeros([3, 256, 1])
-
-for ch,col in enumerate(color):
-    hist_item = cv2.calcHist([roi_hsv],[ch],None,[256],[0,255])
-    hist_item[0, :] = 0
-    hist_item = np.int32(hist_item)
-    hist_item_norm = cv2.normalize(hist_item,0,255,
-                                 cv2.NORM_MINMAX)
-    hist=np.int32(np.around(hist_item_norm))
-    pts = np.column_stack((bins,hist))
-    cv2.polylines(h,[pts],False,col)
-    test_hist[ch] = hist_item
-
-h = np.flipud(h)
-
-cv2.imshow('crop',mask_circ)
-cv2.imshow('roi hue',roi_h)
-cv2.imshow('roi sat',roi_s)
-cv2.imshow('roi val',roi_v)
-cv2.imshow('colorhist',h)
-cv2.moveWindow('crop', image.shape[1] + 18 * 1 + 200, 200)
-cv2.moveWindow('roi hue', image.shape[1] + mask_circ.shape[1] + 18 * 2 +
-               200, 200)
-cv2.moveWindow('roi sat', image.shape[1] + 18 * 1 + 200, mask_circ.shape[0]
-               + 200)
-cv2.moveWindow('roi val', image.shape[1] + mask_circ.shape[1] + 18 * 2 + 200,
-               mask_circ.shape[0] + 200)
-cv2.moveWindow('colorhist', image.shape[1] + 2 * mask_circ.shape[1] + 18 * 3
-               + 200,
-               200)
-if h.shape[0] < 256 and h.shape[1] < 256:
-    h = h[0:255, 0:255]
-    cv2.resizeWindow('colorhist', 256, 256)
-cv2.waitKey(0)
-
-perc_range = range(101)
-perc_vals = np.zeros(101)
-for i in perc_range:
-    perc_vals[i] = np.percentile(roi_h, i)
-
-def get_percentile_bin(hist, pct):
-    cs = np.cumsum(hist)
-    print(cs)
-    bin_id = np.searchsorted(cs, np.percentile(cs, pct))
-    return bin_id
-
-test_bin1 = get_percentile_bin(test_hist[0], 5)
-test_bin2 = get_percentile_bin(test_hist[0], 95)
-print(test_hist[0])
-print(test_bin1, test_bin2)
-print(test_hist[0][test_bin1], test_hist[0][test_bin2])
-
-plt.plot(test_hist[0])
-plt.plot(np.cumsum(test_hist[0]))
-plt.show()
-###
