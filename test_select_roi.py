@@ -69,49 +69,6 @@ def select_roi(frame):
     return callback_params['roi']
 
 
-def drag_circle(img):
-    """Select a region of interest from a captured frame"""
-    wd_frame = 'Select Calibration Targets'
-    cv2.namedWindow(wd_frame)
-    cv2.moveWindow(wd_frame,
-                   config['windows']['ORIGIN_X'],
-                   config['windows']['ORIGIN_Y'])
-
-    center = None
-    radius = None
-
-    cb_params = {'drag': None,
-                 'point1': np.zeros(2),
-                 'point2': np.zeros(2),
-                 'selected': None}
-
-    while not cb_params['selected']:
-        cv2.imshow(wd_frame, img)
-
-        cv2.setMouseCallback(wd_frame, circle_mouse_callback,
-                             param=cb_params)
-
-        if cb_params['drag']:
-            circ_img = img.copy()
-            radius = np.int(np.linalg.norm(cb_params['point1'] -
-                                           cb_params['point2']))
-            cv2.circle(circ_img,
-                       tuple(cb_params['point1']),
-                       radius,
-                       255, 2, 8, 0)
-            cv2.imshow(wd_frame, circ_img)
-
-        center = cb_params['point1']
-        radius = np.int(np.linalg.norm(cb_params['point1'] -
-                                       cb_params['point2']))
-
-        if cv2.waitKey(5) == 27:
-            break
-
-    circle = [center,
-              radius]
-    return circle
-
 
 def scale_image(image, scale):
     """Resize an image by a given scale."""

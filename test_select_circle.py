@@ -1,14 +1,283 @@
 from config import config
-import gui_functions
 import cv2
 import numpy as np
 
-class TrackingTarget():
-    def __init__(self, cam_feed):
-        self.c = cam_feed
+
+class TrackingTarget:
+    def __init__(self, camera):
+        self.c = cv2.VideoCapture(camera)
+        self._cal_count = None
+        self._cal_funcs = None
+        self._cal_args = None
+        self._cal_init = None
+        self._cal_image = None
+
+        self._circle = None
+
+        self._roi = None
+        self._roi_origin = None
+
+        self._adj_circle = None
+
+        self.cb_params = {'drag': None,
+                          'point1': np.zeros(2),
+                          'point2': np.zeros(2),
+                          'selected': None}
+
+        self._circle = None
+
+        self.thresh_percs = config['thresh_percs']
+
+        self.thresholds = None
 
     def calibrate(self):
-        pass
+        """Calibrate the tracking target.  Captures an image from the video
+        feed and allows the user to drag a circular region of interest where
+        the target is and finely adjust it.  Once the circular ROI is
+        selected, an upper and lower percentile of the HSV values of the
+        region of interested are calculated, which are used in threshold
+        masks to find the target and subsequently track it."""
+        self._cal_count = 0
+
+        """List of functions.  ***explain why using a list with cal_count to be
+        able to jump back and forth in the calibration steps, as well as the 
+        cal_init list"""
+        self._cal_funcs = [self.capture_image,
+                           self.drag_circle,
+                           self.adjust_circle,
+                           self.adjust_hsv_thresholds]
+
+        self._cal_args = [[],
+                          [],
+                          [],
+                          []]
+
+        self._cal_init = [False] * len(self._cal_funcs)
+
+        while 0 <= self._cal_count < len(self._cal_funcs):
+            self._cal_funcs[self._cal_count](*self._cal_args[self._cal_count])
+
+    def capture_image(self):
+        """Displays video from input camera feed"""
+        # window initialization
+        win_name = 'Camera Feed'
+        cv2.namedWindow(win_name)
+        cv2.moveWindow(win_name,
+                       config['windows']['ORIGIN_X'],
+                       config['windows']['ORIGIN_Y'])
+
+        print_instruct(config['messages']['capture_image'])
+
+        # initialize variables
+        keypress = -1
+        frame = None
+
+        # Display video feed unless Space or Esc are pressed
+        while keypress == -1:
+            __, frame = self.c.read()
+            cv2.imshow(win_name, frame)
+            keypress = cv2.waitKey(10)
+
+        if keypress == 32:  # 32 = Space
+            print('Image captured.')
+            self._cal_image = frame
+            self._cal_count += 1
+        elif keypress == 27:  # 27 = Esc
+            print('Calibration aborted.')
+            self._cal_count -= 1
+
+        cv2.destroyWindow(win_name)
+        return
+
+    def drag_circle(self):
+        """Select a region of interest from a captured frame"""
+        # window initialization
+        win_name = 'Select Calibration Targets'
+        cv2.namedWindow(win_name)
+        cv2.moveWindow(win_name,
+                       config['windows']['ORIGIN_X'],
+                       config['windows']['ORIGIN_Y'])
+
+        print_instruct(config['messages']['drag_circle'])
+
+        # initialize variables
+        center = None
+        radius = None
+        self.cb_params['selected'] = None
+
+        # run loop until circle is dragged and released
+        while not self.cb_params['selected']:
+            cv2.imshow(win_name, self._cal_image)
+
+            # mouse callback function for dragging circle on window
+            cv2.setMouseCallback(win_name, circle_mouse_callback,
+                                 param=self)
+
+            # continuously draw circle on image while mouse is being dragged
+            if self.cb_params['drag']:
+                circ_img = self._cal_image.copy()
+                radius = np.int(np.linalg.norm(self.cb_params['point1'] -
+                                               self.cb_params['point2']))
+                cv2.circle(circ_img,
+                           tuple(self.cb_params['point1']),
+                           radius,
+                           (0, 0, 0), 1, 8, 0)
+                cv2.imshow(win_name, circ_img)
+
+            center = self.cb_params['point1']
+            radius = np.int(np.linalg.norm(self.cb_params['point1'] -
+                                           self.cb_params['point2']))
+
+            # abort function if Esc pressed
+            if cv2.waitKey(5) == 27:
+                print('Drag Circle aborted.')
+                self._cal_count -= 1
+                break
+        else:
+            print('Drag Circle complete.')
+            self._circle = [center,
+                            radius]
+            self._cal_count += 1
+
+        cv2.destroyWindow(win_name)
+        return
+
+    def adjust_circle(self):
+        """Manually adjust a circle on an image"""
+
+        print_instruct(config['messages']['adjust_circle'])
+
+        roi, roi_origin = get_circle_roi(self._cal_image, self._circle)
+
+        circle_local = np.copy(self._circle)
+        circle_local[0] = self._circle[0] - np.flipud(roi_origin)
+
+        scale = config['roi']['ADJUST_SCALE']
+        roi = scale_image(roi, scale)
+        circle_local = np.multiply(circle_local, scale)
+
+        wd_adjcir = 'Adjust Target Circle'
+        keypress = -1
+        img_circ = np.copy(roi)
+        # Set max radius of circle as half of the longest side of image
+        max_radius = np.max([roi.shape[0], roi.shape[1]]) // 2
+        cv2.namedWindow(wd_adjcir)
+        cv2.resizeWindow(wd_adjcir, 200, 200)
+        cv2.createTrackbar('x', wd_adjcir,
+                           circle_local[0][0], roi.shape[1], empty_callback)
+        cv2.createTrackbar('y', wd_adjcir,
+                           circle_local[0][1], roi.shape[0], empty_callback)
+        cv2.createTrackbar('r', wd_adjcir,
+                           circle_local[1], max_radius, empty_callback)
+        while keypress == -1:
+            cv2.circle(img_circ,
+                       (cv2.getTrackbarPos('x', wd_adjcir),
+                        cv2.getTrackbarPos('y', wd_adjcir)),
+                       cv2.getTrackbarPos('r', wd_adjcir),
+                       (0, 0, 0),
+                       1)
+            cv2.imshow(wd_adjcir, img_circ)
+            img_circ = np.copy(roi)
+            keypress = cv2.waitKey(5)
+
+        if keypress == 32:
+            print('Circle adjusted.')
+            self._adj_circle = ((cv2.getTrackbarPos('x', wd_adjcir) // scale +
+                                 roi_origin[1],
+                                 cv2.getTrackbarPos('y', wd_adjcir) // scale +
+                                 roi_origin[0]),
+                                cv2.getTrackbarPos('r', wd_adjcir) // scale)
+            self._cal_count += 1
+        elif keypress == 27:  # 27 = Esc
+            print('Adjust Circle aborted.')
+            self._cal_count -= 1
+
+        cv2.destroyWindow(wd_adjcir)
+        return
+
+    def adjust_hsv_thresholds(self):
+        """Displays thresholded HSV binary and allows user to adjust
+        threshold limits."""
+
+        print_instruct(config['messages']['adjust_hsv_values'])
+
+        win_track = 'Adjustment Control Panel'
+        cv2.namedWindow(win_track)
+
+        masked_circle = circle_mask(self._cal_image, self._adj_circle)
+        self.thresholds = get_hsv_thresholds(masked_circle, self.thresh_percs)
+
+        thresh_names = ['H_LO', 'H_HI',
+                        'S_LO', 'S_HI',
+                        'V_LO', 'V_HI']
+
+        blur_k_name = 'BLUR \'K\''
+
+        max_vals = [179, 179, 255, 255, 255, 255]
+
+        for thresh, val, max_val in zip(thresh_names,
+                                        self.thresholds,
+                                        max_vals):
+            cv2.createTrackbar(thresh, win_track, val, max_val, empty_callback)
+
+        cv2.createTrackbar(blur_k_name, win_track,
+                           config['blur_k']['initial'],
+                           config['blur_k']['max'],
+                           blur_nonzero_callback)
+
+        keypress = -1
+
+        while keypress == -1:
+            __, frame = self.c.read()
+
+            # blur frame
+            blur_k = cv2.getTrackbarPos(blur_k_name, win_track)
+            # set blur_k to 1 if less than 1, since trackbar lower limit is 0.
+            if blur_k < 1:
+                blur_k = 1
+            frame_blur = cv2.blur(frame, (blur_k, blur_k))
+
+            frame_hsv = cv2.cvtColor(frame_blur, cv2.COLOR_BGR2HSV)
+
+            thresh_vals = np.asarray([cv2.getTrackbarPos(name, win_track)
+                                      for name in thresh_names])
+
+            frame_thresh = cv2.inRange(frame_hsv,
+                                       thresh_vals[::2],
+                                       thresh_vals[1::2])
+
+            # cv2.imshow(win_thresh, frame_thresh)
+            cv2.imshow(win_track, frame_thresh)
+
+            keypress = cv2.waitKey(5)
+
+        if keypress == 27:
+            print('Adjust HSV Values aborted.')
+            self._cal_count -= 1
+        elif keypress == 32:
+            print('HSV values saved.')
+            self._cal_count += 1
+        else:
+            print('Values reset to default.')
+
+        cv2.destroyWindow(win_track)
+
+
+def print_instruct(message):
+    print('*' * 79)
+    print(message)
+    print(config['messages']['key_input'])
+    print('*' * 79)
+
+
+def blur_nonzero_callback(x):
+    """Return 1 if x < 1, otherwise return x.  Used as trackbar callback for
+    values that cannot go to zero(e.g. blur 'k' value."""
+    if x < 1:
+        return 1
+    else:
+        return x
+
 
 def test_frame():
     im_num = 1
@@ -18,64 +287,22 @@ def test_frame():
     return cv2.imread(imfile)
 
 
-def circle_mouse_callback(event, x, y, params):
+# noinspection PyUnusedLocal
+def circle_mouse_callback(event, x, y, flags, params):
     """Mouse callback function for selecting a circle on a frame by dragging
     from the center to the edge"""
-    if event == cv2.EVENT_LBUTTONDOWN and not params['drag']:
-        params['point1'] = np.array([x, y])
-        params['drag'] = True
-    elif event == cv2.EVENT_MOUSEMOVE and params['drag']:
-        params['point2'] = np.array([x, y])
-    elif event == cv2.EVENT_LBUTTONUP and params['drag']:
-        params['point2'] = np.array([x, y])
-        params['drag'] = False
-        if not np.array_equal(params['point2'], params['point1']):
-            params['selected'] = True
+    if event == cv2.EVENT_LBUTTONDOWN and not params.cb_params['drag']:
+        params.cb_params['point1'] = np.array([x, y])
+        params.cb_params['drag'] = True
+    elif event == cv2.EVENT_MOUSEMOVE and params.cb_params['drag']:
+        params.cb_params['point2'] = np.array([x, y])
+    elif event == cv2.EVENT_LBUTTONUP and params.cb_params['drag']:
+        params.cb_params['point2'] = np.array([x, y])
+        params.cb_params['drag'] = False
+        if not np.array_equal(params.cb_params['point2'],
+                              params.cb_params['point1']):
+            params.cb_params['selected'] = True
     return
-
-
-def drag_circle(img):
-    """Select a region of interest from a captured frame"""
-    wd_frame = 'Select Calibration Targets'
-    cv2.namedWindow(wd_frame)
-    cv2.moveWindow(wd_frame,
-                   config['windows']['ORIGIN_X'],
-                   config['windows']['ORIGIN_Y'])
-
-    center = None
-    radius = None
-
-    cb_params = {'drag': None,
-                 'point1': np.zeros(2),
-                 'point2': np.zeros(2),
-                 'selected': None}
-
-    while not cb_params['selected']:
-        cv2.imshow(wd_frame, img)
-
-        cv2.setMouseCallback(wd_frame, circle_mouse_callback,
-                             param=cb_params)
-
-        if cb_params['drag']:
-            circ_img = img.copy()
-            radius = np.int(np.linalg.norm(cb_params['point1'] -
-                                           cb_params['point2']))
-            cv2.circle(circ_img,
-                       tuple(cb_params['point1']),
-                       radius,
-                       (0, 0, 0), 1, 8, 0)
-            cv2.imshow(wd_frame, circ_img)
-
-        center = cb_params['point1']
-        radius = np.int(np.linalg.norm(cb_params['point1'] -
-                                       cb_params['point2']))
-
-        if cv2.waitKey(5) == 27:
-            break
-
-    circle = [center,
-              radius]
-    return circle
 
 
 def scale_image(image, scale):
@@ -148,31 +375,37 @@ def get_circle_roi(image, circle):
     padding = config['roi']['PADDING']
     rad_padded = int(radius * padding)
 
-    roi = image[(center[1] - rad_padded):
-                (center[1] + rad_padded),
-                (center[0] - rad_padded):
-                (center[0] + rad_padded)]
+    y_min = max((center[1] - rad_padded), 0)
+    y_max = min((center[1] + rad_padded), image.shape[0])
+    x_min = max((center[0] - rad_padded), 0)
+    x_max = min((center[0] + rad_padded), image.shape[1])
 
-    roi_origin = np.array([(center[1] - rad_padded),
-                           (center[0] - rad_padded)])
+    roi = image[y_min: y_max, x_min: x_max]
+
+    roi_origin = np.array([y_min, x_min])
 
     return roi, roi_origin
 
 
-def select_circle(image):
-    """Specify a circle area by first dragging a rough circle then finely
-    adjusting the circle.  Returns (EXPAND HERE)
-    """
-    confirmed = False
-    circle_adj = None
+def get_hsv_thresholds(image, percentiles):
+    """Find an upper and lower threshold for each HSV channel given an
+    image and upper and lower percentiles."""
 
-    while not confirmed:
-        circle = drag_circle(image)
-        roi, roi_origin = get_circle_roi(image, circle)
-        circle_adj = adjust_circle(roi, roi_origin, circle)
-        confirmed = gui_functions.button_confirm()
+    if len(percentiles) == 1:
+        percentiles = [percentiles] * image.shape[2]
+    elif len(percentiles) != image.shape[2]:
+        raise IndexError('Number of percentile ranges must be either 1 or '
+                         'match number of channels in image.')
 
-    return circle_adj
+    image_hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    hsv_thresholds = []
+    for channel, perc in zip(cv2.split(image_hsv), percentiles):
+        hsv_thresholds.append(channel_percentile(channel, perc))
+
+    # flatten list
+    flat_thresh = [item for sublist in hsv_thresholds for item in sublist]
+
+    return flat_thresh
 
 
 def circle_mask(image, circle):
@@ -297,5 +530,5 @@ def channel_percentile(channel, percentile, rem_zero=True):
 #
 # ###
 
-c = cv2.VideoCapture(0)
-cv2.waitKey(0)
+target = TrackingTarget(0)
+target.calibrate()
