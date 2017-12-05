@@ -7,6 +7,14 @@ with open('config.json', 'r') as f:
 def config_build():
     config = {}
 
+    # Device IDs for cameras
+    config['cameras'] = [0, 2]
+
+    # three tracking targets
+    config['targets'] = ['pos',  # positioning target
+                         'ori',  # orienting target
+                         'sta']  # stabilizing target
+
     # WINDOW SETTINGS
     config['windows'] = {'ORIGIN_X': 1440,
                          'ORIGIN_Y': 0}

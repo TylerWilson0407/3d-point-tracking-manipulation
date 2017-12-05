@@ -25,3 +25,5 @@ constructor then can initialize in calibrate function?
  - Add blur adjustment to calibration or keep at set value??
  - Change any hardcoded drawing parameters(circle color, weight, etc) to config
   file variables
+ - In class methods, define variables locally(e.g. circle = self._circle, etc)
+ to reduce clutter and make code look cleaner

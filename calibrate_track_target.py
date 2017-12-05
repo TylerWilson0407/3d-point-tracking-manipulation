@@ -12,22 +12,19 @@ class TrackingTarget:
         self._cal_init = None
         self._cal_image = None
 
-        self._circle = None
-
-        self._roi = None
-        self._roi_origin = None
-
-        self._adj_circle = None
-
         self.cb_params = {'drag': None,
                           'point1': np.zeros(2),
                           'point2': np.zeros(2),
                           'released': None}
 
-        self._circle = None
+        self._roi = None
+        self._roi_origin = None
+
+        self._rough_circle = None
 
         self.thresh_percs = config['thresh_percs']
 
+        self.circle = None
         self.thresholds = None
 
     def calibrate(self):
@@ -123,7 +120,7 @@ class TrackingTarget:
 
             keypress = cv2.waitKey(5)
 
-        self._circle = [center, radius]
+        self._rough_circle = [center, radius]
 
         # adjust procedure counter
         self.keypress_go_to(keypress)
@@ -144,10 +141,10 @@ class TrackingTarget:
         cv2.resizeWindow(win, 200, 200)
 
         # initialize variables
-        roi, roi_origin = get_circle_roi(self._cal_image, self._circle)
+        roi, roi_origin = get_circle_roi(self._cal_image, self._rough_circle)
 
-        circle_local = np.copy(self._circle)
-        circle_local[0] = self._circle[0] - np.flipud(roi_origin)
+        circle_local = np.copy(self._rough_circle)
+        circle_local[0] = self._rough_circle[0] - np.flipud(roi_origin)
 
         # scale image to be bigger and allow for easier adjustment
         scale = config['roi']['ADJUST_SCALE']
@@ -180,11 +177,11 @@ class TrackingTarget:
             img_circ = np.copy(roi)
             keypress = cv2.waitKey(5)
 
-        self._adj_circle = ((cv2.getTrackbarPos('x', win) // scale +
-                             roi_origin[1],
-                             cv2.getTrackbarPos('y', win) // scale +
-                             roi_origin[0]),
-                            cv2.getTrackbarPos('r', win) // scale)
+        self.circle = ((cv2.getTrackbarPos('x', win) // scale +
+                        roi_origin[1],
+                        cv2.getTrackbarPos('y', win) // scale +
+                        roi_origin[0]),
+                       cv2.getTrackbarPos('r', win) // scale)
 
         # adjust procedure counter
         self.keypress_go_to(keypress)
@@ -206,7 +203,7 @@ class TrackingTarget:
         cv2.namedWindow(win_track)
 
         # initialize variables and trackbars
-        masked_circle = circle_mask(self._cal_image, self._adj_circle)
+        masked_circle = circle_mask(self._cal_image, self.circle)
         self.thresholds = get_hsv_thresholds(masked_circle, self.thresh_percs)
 
         thresh_names = ['H_LO', 'H_HI',
