@@ -22,7 +22,7 @@ class TrackingTarget:
         self.cb_params = {'drag': None,
                           'point1': np.zeros(2),
                           'point2': np.zeros(2),
-                          'selected': None}
+                          'released': None}
 
         self._circle = None
 
@@ -47,163 +47,165 @@ class TrackingTarget:
                            self.adjust_circle,
                            self.adjust_hsv_thresholds]
 
-        self._cal_args = [[],
-                          [],
-                          [],
-                          []]
-
-        self._cal_init = [False] * len(self._cal_funcs)
-
         while 0 <= self._cal_count < len(self._cal_funcs):
-            self._cal_funcs[self._cal_count](*self._cal_args[self._cal_count])
+            self._cal_funcs[self._cal_count]()
 
     def capture_image(self):
-        """Displays video from input camera feed"""
-        # window initialization
-        win_name = 'Camera Feed'
-        cv2.namedWindow(win_name)
-        cv2.moveWindow(win_name,
+        """Displays video from input camera feed and capture calibration
+        frame"""
+
+        instruct = 'Hold up calibration target(s) and press SPACE to ' \
+                   'capture image.'
+        self.print_instruct(instruct)
+
+        # initialize window
+        win = 'Camera Feed'
+        cv2.namedWindow(win)
+        cv2.moveWindow(win,
                        config['windows']['ORIGIN_X'],
                        config['windows']['ORIGIN_Y'])
 
-        print_instruct(config['messages']['capture_image'])
-
         # initialize variables
         keypress = -1
-        frame = None
 
-        # Display video feed unless Space or Esc are pressed
         while keypress == -1:
-            __, frame = self.c.read()
-            cv2.imshow(win_name, frame)
+            __, self._cal_image = self.c.read()
+            cv2.imshow(win, self._cal_image)
             keypress = cv2.waitKey(10)
 
-        if keypress == 32:  # 32 = Space
-            print('Image captured.')
-            self._cal_image = frame
-            self._cal_count += 1
-        elif keypress == 27:  # 27 = Esc
-            print('Calibration aborted.')
-            self._cal_count -= 1
+        # adjust procedure counter
+        self.keypress_go_to(keypress)
 
-        cv2.destroyWindow(win_name)
+        cv2.destroyWindow(win)
         return
 
     def drag_circle(self):
         """Select a region of interest from a captured frame"""
-        # window initialization
-        win_name = 'Select Calibration Targets'
-        cv2.namedWindow(win_name)
-        cv2.moveWindow(win_name,
+
+        instruct = 'Drag a circle from the center of desired target to the ' \
+                   'edge and release mouse.  Circle can be finely adjusted ' \
+                   'in next step, so it does not have to be perfect.'
+        self.print_instruct(instruct)
+
+        # initialize window
+        win = 'Select Calibration Targets'
+        cv2.namedWindow(win)
+        cv2.moveWindow(win,
                        config['windows']['ORIGIN_X'],
                        config['windows']['ORIGIN_Y'])
 
-        print_instruct(config['messages']['drag_circle'])
-
         # initialize variables
+        self.cb_params['released'] = False
         center = None
         radius = None
-        self.cb_params['selected'] = None
+        keypress = -1
 
-        # run loop until circle is dragged and released
-        while not self.cb_params['selected']:
-            cv2.imshow(win_name, self._cal_image)
+        cv2.imshow(win, self._cal_image)
+
+        while keypress == -1:
 
             # mouse callback function for dragging circle on window
-            cv2.setMouseCallback(win_name, circle_mouse_callback,
+            cv2.setMouseCallback(win, circle_mouse_callback,
                                  param=self)
-
-            # continuously draw circle on image while mouse is being dragged
-            if self.cb_params['drag']:
-                circ_img = self._cal_image.copy()
-                radius = np.int(np.linalg.norm(self.cb_params['point1'] -
-                                               self.cb_params['point2']))
-                cv2.circle(circ_img,
-                           tuple(self.cb_params['point1']),
-                           radius,
-                           (0, 0, 0), 1, 8, 0)
-                cv2.imshow(win_name, circ_img)
 
             center = self.cb_params['point1']
             radius = np.int(np.linalg.norm(self.cb_params['point1'] -
                                            self.cb_params['point2']))
 
-            # abort function if Esc pressed
-            if cv2.waitKey(5) == 27:
-                print('Drag Circle aborted.')
-                self._cal_count -= 1
-                break
-        else:
-            print('Drag Circle complete.')
-            self._circle = [center,
-                            radius]
-            self._cal_count += 1
+            # continuously draw circle on image while mouse is being dragged
+            if self.cb_params['drag'] or self.cb_params['released']:
+                circ_img = self._cal_image.copy()
+                cv2.circle(circ_img,
+                           tuple(center),
+                           radius,
+                           (0, 0, 0), 1, 8, 0)
+                cv2.imshow(win, circ_img)
 
-        cv2.destroyWindow(win_name)
+            keypress = cv2.waitKey(5)
+
+        self._circle = [center, radius]
+
+        # adjust procedure counter
+        self.keypress_go_to(keypress)
+
+        cv2.destroyWindow(win)
         return
 
     def adjust_circle(self):
         """Manually adjust a circle on an image"""
 
-        print_instruct(config['messages']['adjust_circle'])
+        instruct = 'Adjust the circle so that it is co-radial with the ' \
+                   'tracking target.'
+        self.print_instruct(instruct)
 
+        # initialize window and trackbars
+        win = 'Adjust Target Circle'
+        cv2.namedWindow(win)
+        cv2.resizeWindow(win, 200, 200)
+
+        # initialize variables
         roi, roi_origin = get_circle_roi(self._cal_image, self._circle)
 
         circle_local = np.copy(self._circle)
         circle_local[0] = self._circle[0] - np.flipud(roi_origin)
 
+        # scale image to be bigger and allow for easier adjustment
         scale = config['roi']['ADJUST_SCALE']
         roi = scale_image(roi, scale)
         circle_local = np.multiply(circle_local, scale)
 
-        wd_adjcir = 'Adjust Target Circle'
-        keypress = -1
         img_circ = np.copy(roi)
-        # Set max radius of circle as half of the longest side of image
-        max_radius = np.max([roi.shape[0], roi.shape[1]]) // 2
-        cv2.namedWindow(wd_adjcir)
-        cv2.resizeWindow(wd_adjcir, 200, 200)
-        cv2.createTrackbar('x', wd_adjcir,
+        # Set max radius of circle such that the max diameter is the length
+        # of the region of interest
+        max_radius = roi.shape[0] // 2
+
+        # initialize trackbars
+        cv2.createTrackbar('x', win,
                            circle_local[0][0], roi.shape[1], empty_callback)
-        cv2.createTrackbar('y', wd_adjcir,
+        cv2.createTrackbar('y', win,
                            circle_local[0][1], roi.shape[0], empty_callback)
-        cv2.createTrackbar('r', wd_adjcir,
+        cv2.createTrackbar('r', win,
                            circle_local[1], max_radius, empty_callback)
+
+        keypress = -1
+
         while keypress == -1:
             cv2.circle(img_circ,
-                       (cv2.getTrackbarPos('x', wd_adjcir),
-                        cv2.getTrackbarPos('y', wd_adjcir)),
-                       cv2.getTrackbarPos('r', wd_adjcir),
+                       (cv2.getTrackbarPos('x', win),
+                        cv2.getTrackbarPos('y', win)),
+                       cv2.getTrackbarPos('r', win),
                        (0, 0, 0),
                        1)
-            cv2.imshow(wd_adjcir, img_circ)
+            cv2.imshow(win, img_circ)
             img_circ = np.copy(roi)
             keypress = cv2.waitKey(5)
 
-        if keypress == 32:
-            print('Circle adjusted.')
-            self._adj_circle = ((cv2.getTrackbarPos('x', wd_adjcir) // scale +
-                                 roi_origin[1],
-                                 cv2.getTrackbarPos('y', wd_adjcir) // scale +
-                                 roi_origin[0]),
-                                cv2.getTrackbarPos('r', wd_adjcir) // scale)
-            self._cal_count += 1
-        elif keypress == 27:  # 27 = Esc
-            print('Adjust Circle aborted.')
-            self._cal_count -= 1
+        self._adj_circle = ((cv2.getTrackbarPos('x', win) // scale +
+                             roi_origin[1],
+                             cv2.getTrackbarPos('y', win) // scale +
+                             roi_origin[0]),
+                            cv2.getTrackbarPos('r', win) // scale)
 
-        cv2.destroyWindow(wd_adjcir)
+        # adjust procedure counter
+        self.keypress_go_to(keypress)
+
+        cv2.destroyWindow(win)
         return
 
     def adjust_hsv_thresholds(self):
         """Displays thresholded HSV binary and allows user to adjust
         threshold limits."""
 
-        print_instruct(config['messages']['adjust_hsv_values'])
+        instruct = 'Adjust the HSV threshold limits until the target is ' \
+                   'highly visible and the rest of the image is mostly masked.'
+        kp_reset = 'Press \'r\' to reset trackbar positions.'
+        self.print_instruct(instruct, kp_before=kp_reset)
 
+        # initialize window
         win_track = 'Adjustment Control Panel'
         cv2.namedWindow(win_track)
 
+        # initialize variables and trackbars
         masked_circle = circle_mask(self._cal_image, self._adj_circle)
         self.thresholds = get_hsv_thresholds(masked_circle, self.thresh_percs)
 
@@ -223,7 +225,8 @@ class TrackingTarget:
         cv2.createTrackbar(blur_k_name, win_track,
                            config['blur_k']['initial'],
                            config['blur_k']['max'],
-                           blur_nonzero_callback)
+                           empty_callback)
+        cv2.setTrackbarMin(blur_k_name, win_track, 1)
 
         keypress = -1
 
@@ -251,40 +254,66 @@ class TrackingTarget:
 
             keypress = cv2.waitKey(5)
 
-        if keypress == 27:
-            print('Adjust HSV Values aborted.')
-            self._cal_count -= 1
-        elif keypress == 32:
-            print('HSV values saved.')
-            self._cal_count += 1
-        else:
-            print('Values reset to default.')
+        # adjust procedure counter
+        self.keypress_go_to(keypress)
 
         cv2.destroyWindow(win_track)
 
+    def keypress_go_to(self, keypress):
+        """Print a message and adjust procedure counter based on keyboard
+        input(SPACE, ESC, or 'Q').  Option parameters allow for custom
+        messages to print, otherwise a default is used
 
-def print_instruct(message):
-    print('*' * 79)
-    print(message)
-    print(config['messages']['key_input'])
-    print('*' * 79)
+        SPACE increments the counter to proceed to the next step.
+        ESC decrements the counter to proceed to the previous step.
+        'q' sets the counter to -1 which will exit the loop to abort the
+        procedure.
 
+        """
+        if keypress == 32:  # SPACE
+            if self._cal_count == (len(self._cal_funcs) - 1):
+                print('SPACE pressed.  Calibration procedure finished.')
+            else:
+                print('SPACE pressed.  Continuing to next step.')
+            self._cal_count += 1
+        elif keypress == 27:  # ESC
+            if self._cal_count == 0:
+                print('ESC pressed.  Calibration aborted.')
+            else:
+                print('ESC pressed.  Returning to previous step.')
+            self._cal_count -= 1
+        elif keypress == 113:  # 'q'
+            print('\'q\' pressed.  Calibration aborted.')
+            self._cal_count = -1
 
-def blur_nonzero_callback(x):
-    """Return 1 if x < 1, otherwise return x.  Used as trackbar callback for
-    values that cannot go to zero(e.g. blur 'k' value."""
-    if x < 1:
-        return 1
-    else:
-        return x
+    def print_instruct(self, message, kp_before=None, kp_after=None):
+        """Prints instructions for calibration procedure step."""
+        print('*' * 79)
+        print(message)
+        print('')
 
+        if kp_before:
+            print(kp_before)
 
-def test_frame():
-    im_num = 1
-    leftright = 'L'
-    imfile = r'test_images/ballcalib_' + str(im_num) + '_' + leftright + '.bmp'
+        if self._cal_count == len(self._cal_funcs):
+            spc = 'complete calibration.'
+        else:
+            spc = 'proceed to next step.'
+        print('Press SPACE to accept and ' + spc)
 
-    return cv2.imread(imfile)
+        if self._cal_count == 0:
+            esc = 'or \'q\' to abort and end calibration procedure.'
+        else:
+            esc = 'to return to previous step.\n' \
+                  'Press \'q\' to abort calibration procedure.'
+        print('Press ESC ' + esc)
+
+        if kp_after:
+            print(kp_after)
+
+        print('*' * 79)
+
+        return
 
 
 # noinspection PyUnusedLocal
@@ -299,9 +328,7 @@ def circle_mouse_callback(event, x, y, flags, params):
     elif event == cv2.EVENT_LBUTTONUP and params.cb_params['drag']:
         params.cb_params['point2'] = np.array([x, y])
         params.cb_params['drag'] = False
-        if not np.array_equal(params.cb_params['point2'],
-                              params.cb_params['point1']):
-            params.cb_params['selected'] = True
+        params.cb_params['released'] = True
     return
 
 
@@ -449,86 +476,6 @@ def channel_percentile(channel, percentile, rem_zero=True):
 
     return perc_vals
 
-
-# def get_percentile_bin(hist, pct):
-#     cs = np.cumsum(hist)
-#     bin_id = np.searchsorted(cs, np.percentile(cs, pct))
-#     return bin_id
-
-# image = test_frame()
-# test_circle = select_circle(image)
-# print(test_circle)
-# mask_circ = circle_mask(image, test_circle)
-#
-# cv2.imshow('masked circle', mask_circ)
-# cv2.waitKey(0)
-#
-# np.save('test_roi_save', mask_circ)
-# np.save('test_image_save', image)
-#
-#
-# image_hsv = cv2.cvtColor(mask_circ, cv2.COLOR_BGR2HSV)
-#
-# roi_hsv = cv2.cvtColor(mask_circ,cv2.COLOR_BGR2HSV)
-# roi_h = cv2.split(roi_hsv)[0]
-# roi_s = cv2.split(roi_hsv)[1]
-# roi_v = cv2.split(roi_hsv)[2]
-#
-#
-# ch_perc = channel_percentile(roi_h, [5, 95])
-#
-# h = np.zeros([256, 256,3])
-# bins = np.arange(256).reshape(256,1)
-# color = [ (255,0,0),(0,255,0),(0,0,255)]
-#
-# test_hist = np.zeros([3, 256, 1])
-#
-# for ch,col in enumerate(color):
-#     hist_item = cv2.calcHist([roi_hsv],[ch],None,[256],[0,255])
-#     hist_item[0, :] = 0
-#     hist_item = np.int32(hist_item)
-#     hist_item_norm = cv2.normalize(hist_item,0,255,
-#                                  cv2.NORM_MINMAX)
-#     hist=np.int32(np.around(hist_item_norm))
-#     pts = np.column_stack((bins,hist))
-#     cv2.polylines(h,[pts],False,col)
-#     test_hist[ch] = hist_item
-#
-# h = np.flipud(h)
-#
-# cv2.imshow('crop',mask_circ)
-# cv2.imshow('roi hue',roi_h)
-# cv2.imshow('roi sat',roi_s)
-# cv2.imshow('roi val',roi_v)
-# cv2.imshow('colorhist',h)
-# cv2.moveWindow('crop', image.shape[1] + 18 * 1 + 200, 200)
-# cv2.moveWindow('roi hue', image.shape[1] + mask_circ.shape[1] + 18 * 2 +
-#                200, 200)
-# cv2.moveWindow('roi sat', image.shape[1] + 18 * 1 + 200, mask_circ.shape[0]
-#                + 200)
-# cv2.moveWindow('roi val', image.shape[1] + mask_circ.shape[1] + 18 * 2 + 200,
-#                mask_circ.shape[0] + 200)
-# cv2.moveWindow('colorhist', image.shape[1] + 2 * mask_circ.shape[1] + 18 * 3
-#                + 200,
-#                200)
-# if h.shape[0] < 256 and h.shape[1] < 256:
-#     h = h[0:255, 0:255]
-#     cv2.resizeWindow('colorhist', 256, 256)
-# cv2.waitKey(0)
-#
-# perc_range = range(101)
-# perc_vals = np.zeros(101)
-# for i in perc_range:
-#     perc_vals[i] = np.percentile(roi_h, i)
-#
-# a = test_hist[0]
-# nz_hist = np.all(a == 0)
-# print(nz_hist)
-#
-# print(ch_perc)
-# print(a[ch_perc[0]], a[ch_perc[1]])
-#
-# ###
 
 target = TrackingTarget(0)
 target.calibrate()

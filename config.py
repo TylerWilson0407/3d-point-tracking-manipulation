@@ -21,25 +21,6 @@ def config_build():
                              'HOUGH_PARAM1': 150,
                              'HOUGH_PARAM2': 1}
 
-    # print message SETTINGS
-    config['messages'] = {
-        'key_input': 'Press SPACE to accept and proceed to next step, '
-                     'ESC to abort step and go to previous step, and \'q\' '
-                     'to abort and end calibration procedure',
-        'capture_image': 'Hold up calibration target(s) and press SPACE to '
-                         'capture image.',
-        'drag_circle': 'Drag a circle from the center of desired target to '
-                       'the edge and release mouse.  Circle can be '
-                       'finely adjusted in next step, so it does not have to '
-                       'be perfect.',
-        'adjust_circle': 'Adjust the circle so that it is coradial with the '
-                         'tracking target.',
-        'adjust_hsv_values': 'Adjust the HSV threshold limits until the '
-                             'target is highly visible and the rest of the '
-                             'image is mostly masked.  Press SPACE to '
-                             'confirm, ESC to abort.'
-    }
-
     # hsv percentile threshold SETTINGS
     config['thresh_percs'] = [[5, 95],  # (H_LO, H_HI)
                               [5, 95],  # (S_LO, S_HI)

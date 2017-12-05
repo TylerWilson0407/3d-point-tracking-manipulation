@@ -23,3 +23,5 @@ constructor then can initialize in calibrate function?
  - Should I pull calibration methods out as functions and create wrapper
  methods for them??
  - Add blur adjustment to calibration or keep at set value??
+ - Change any hardcoded drawing parameters(circle color, weight, etc) to config
+  file variables
