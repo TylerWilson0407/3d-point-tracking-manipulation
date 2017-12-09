@@ -14,6 +14,16 @@ class Calibration:
         self.targs = create_tracking_targets(*targ_names)
 
 
+    def calibrate(self):
+        """EXPAND HERE when you figure out how to layout the entire
+        calbration procedure(e.g. break up into camera and target
+        calibration functions?)."""
+
+        # threshlist = dict((k, v) for k, v in self.targs.iteritems() if
+        #                   v.thresholds)
+
+
+        # if not all()
 
 
 def create_tracking_targets(*keys):
@@ -22,6 +32,6 @@ def create_tracking_targets(*keys):
 
     targs = {}
     for key in keys:
-        targs[key] = TrackingTarget
+        targs[key] = TrackingTarget()
 
     return targs

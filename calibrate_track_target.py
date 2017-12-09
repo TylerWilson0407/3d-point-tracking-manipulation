@@ -1,11 +1,14 @@
 from config import config
 import cv2
 import numpy as np
+from subprocess import call
+import sys
 
+import time
 
 class TrackingTarget:
-    def __init__(self, camera):
-        self.c = cv2.VideoCapture(camera)
+    def __init__(self):
+        self.c = None
         self._cal_count = None
         self._cal_funcs = None
         self._cal_args = None
@@ -27,13 +30,15 @@ class TrackingTarget:
         self.circle = None
         self.thresholds = None
 
-    def calibrate(self):
+    def calibrate(self, camera):
         """Calibrate the tracking target.  Captures an image from the video
         feed and allows the user to drag a circular region of interest where
         the target is and finely adjust it.  Once the circular ROI is
         selected, an upper and lower percentile of the HSV values of the
         region of interested are calculated, which are used in threshold
         masks to find the target and subsequently track it."""
+
+        self.c = cv2.VideoCapture(camera)
         self._cal_count = 0
 
         """List of functions.  ***explain why using a list with cal_count to be
@@ -55,12 +60,16 @@ class TrackingTarget:
                    'capture image.'
         self.print_instruct(instruct)
 
+        # # Bring windows to front
+        # get_focus()
+
         # initialize window
         win = 'Camera Feed'
         cv2.namedWindow(win)
         cv2.moveWindow(win,
                        config['windows']['ORIGIN_X'],
                        config['windows']['ORIGIN_Y'])
+        focus_window(win)
 
         # initialize variables
         keypress = -1
@@ -474,5 +483,25 @@ def channel_percentile(channel, percentile, rem_zero=True):
     return perc_vals
 
 
-target = TrackingTarget(0)
-target.calibrate()
+def focus_window(win):
+    """Activate window(bring to front) by executing a shell command with the
+    wmctrl package.  Only works on linux, must have wmctrl package.  If
+    package is not available, function will print message but continue with
+    program, and user will have to click on window to bring it forward.
+    """
+    if sys.platform == 'linux':
+        try:
+            # short delay to ensure window is initialized before attempting
+            # to bring to front
+            time.sleep(.01)
+            call(['wmctrl', '-a', win])
+            print('Bringing window to front.')
+            return
+        except Exception:
+            return
+    else:
+        return
+
+
+target = TrackingTarget()
+target.calibrate(0)
