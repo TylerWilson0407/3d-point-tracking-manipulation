@@ -9,28 +9,27 @@ import time
 class Target:
     """DOCSTRING"""
 
-    def __init__(self, camera):
+    def __init__(self, cam_id):
         """DOCSTRING"""
-        self._cam = camera
-        self.c = None
+        self._cam = cam_id
+        self._vid_feed = None
+
+        # parameters for calibration function
         self._cal_count = None
-        self._cal_funcs = None
-        self._cal_args = None
-        self._cal_init = None
+        self._cal_funcs = [self._get_cal_frame,
+                           self._get_rough_circle,
+                           self._get_final_circle,
+                           self._get_thresholds]
+
+        # parameters used to pass data between calibration methods
         self._cal_image = None
-
-        self.cb_params = {'drag': None,
-                          'point1': np.zeros(2),
-                          'point2': np.zeros(2),
-                          'released': None}
-
-        self._roi = None
-        self._roi_origin = None
-
         self._rough_circle = None
-
         self.circle = None
+
         self.thresholds = None
+
+        # attribute for checking if target has been calibrated
+        self.calibrated = None
 
     def calibrate(self, image=None):
         """Calibrate the tracking target.  Captures an image from the video
@@ -38,71 +37,73 @@ class Target:
         the target is and finely adjust it.  Once the circular ROI is
         selected, an upper and lower percentile of the HSV values of the
         region of interested are calculated, which are used in threshold
-        masks to find the target and subsequently track it."""
+        masks to find the target and subsequently track it.
 
-        if not image:
+        If an image is passed as a parameter, method skips the image capture
+        step and instead uses the input image as the calibration image.
+        """
+
+        self.calibrated = False
+        self._vid_feed = cv2.VideoCapture(self._cam)
+
+        if not image.any():
             start_count = self._cal_count = 0
         else:
             start_count = self._cal_count = 1
             self._cal_image = image
 
-        self.c = cv2.VideoCapture(self._cam)
-
-        """List of functions.  ***explain why using a list with cal_count to be
-        able to jump back and forth in the calibration steps
-        """
-        self._cal_funcs = [self.get_cal_frame,
-                           self.get_rough_circle,
-                           self.get_final_circle,
-                           self.get_thresholds]
-
         while start_count <= self._cal_count < len(self._cal_funcs):
             self._cal_funcs[self._cal_count]()
 
-    def get_cal_frame(self):
+        self._vid_feed.release()
+        self.calibrated = True
+
+        return
+
+    def _get_cal_frame(self):
         """Displays video from input camera feed and capture calibration
         frame"""
 
         instruct = 'Hold up calibration target(s) and press SPACE to ' \
                    'capture image.'
-        self.print_instruct(instruct)
+        self._print_instruct(instruct)
 
-        self._cal_image, keypress = capture_image(self.c)
+        self._cal_image, keypress = capture_image(self._vid_feed)
 
         # adjust procedure counter
-        self.keypress_go_to(keypress)
+        self._keypress_go_to(keypress)
 
         return
 
-    def get_rough_circle(self):
+    def _get_rough_circle(self):
         """Select a region of interest from a captured frame"""
 
         instruct = 'Drag a circle from the center of desired target to the ' \
                    'edge and release mouse.  Circle can be finely adjusted ' \
                    'in next step, so it does not have to be perfect.'
-        self.print_instruct(instruct)
+        self._print_instruct(instruct)
 
         self._rough_circle, keypress = drag_circle(self._cal_image)
 
         # adjust procedure counter
-        self.keypress_go_to(keypress)
+        self._keypress_go_to(keypress)
         return
 
-    def get_final_circle(self):
+    def _get_final_circle(self):
         """Manually adjust a circle on an image"""
 
         instruct = 'Adjust the circle so that it is co-radial with the ' \
                    'tracking target.'
-        self.print_instruct(instruct)
+        self._print_instruct(instruct)
 
         self.circle, keypress = adjust_circle(self._cal_image,
                                               self._rough_circle)
 
         # adjust procedure counter
-        self.keypress_go_to(keypress)
+        self._keypress_go_to(keypress)
         return
 
-    def get_thresholds(self):
+    def _get_thresholds(self):
         """finds preliminary threshold values by analyzing pixels
         within selected circle and getting limits based on lower and
         upper percentile values.  Then displays thresholded HSV binary and
@@ -112,42 +113,17 @@ class Target:
         instruct = 'Adjust the HSV threshold limits until the target is ' \
                    'highly visible and the rest of the image is mostly masked.'
         kp_reset = 'Press \'r\' to reset trackbar positions.'
-        self.print_instruct(instruct, kp_before=kp_reset)
+        self._print_instruct(instruct, kp_before=kp_reset)
 
-        self.thresholds, keypress = modify_thresholds(self.c,
+        self.thresholds, keypress = modify_thresholds(self._vid_feed,
                                                       self._cal_image,
                                                       self._rough_circle)
 
         # adjust procedure counter
-        self.keypress_go_to(keypress)
+        self._keypress_go_to(keypress)
         return
 
-    def adjust_thresholds(self):
-        """Displays thresholded HSV binary and allows user to adjust
-        threshold limits."""
-
-        instruct = 'Adjust the HSV threshold limits until the target is ' \
-                   'highly visible and the rest of the image is mostly masked.'
-        kp_reset = 'Press \'r\' to reset trackbar positions.'
-        kp_accept = 'Press SPACE to accept adjusted values.'
-        kp_abort = 'Press ESC or \'q\' to abort adjustment.'
-        print('*' * 79, instruct, '', kp_reset, kp_accept, kp_abort, '*' * 79,
-              sep='\n')
-
-        adj_thresholds = None
-        keypress = -1
-
-        while keypress not in (27, 32, 113):
-            adj_thresholds, keypress = tune_thresholds(self.c, self.thresholds)
-
-        if keypress == 32:  # SPACE
-            self.thresholds = adj_thresholds
-            print('SPACE pressed.  Threshold values adjusted.')
-        elif keypress in (27, 113):  # ESC
-            print('ESC or\'q\' pressed.  Adjustment aborted.')
-        return
-
-    def keypress_go_to(self, keypress):
+    def _keypress_go_to(self, keypress):
         """Print a message and adjust procedure counter based on keyboard
         input(SPACE, ESC, or 'Q').  Option parameters allow for custom
         messages to print, otherwise a default is used
@@ -174,7 +150,7 @@ class Target:
             print('\'q\' pressed.  Calibration aborted.')
             self._cal_count = -1
 
-    def print_instruct(self, message, kp_before=None, kp_after=None):
+    def _print_instruct(self, message, kp_before=None):
         """Prints instructions for calibration procedure step."""
         print('*' * 79)
         print(message)
@@ -196,11 +172,37 @@ class Target:
                   'Press \'q\' to abort calibration procedure.'
         print('Press ESC ' + esc)
 
-        if kp_after:
-            print(kp_after)
-
         print('*' * 79)
 
+        return
+
+    def adjust_thresholds(self):
+        """Displays thresholded HSV binary and allows user to adjust
+        threshold limits."""
+
+        instruct = 'Adjust the HSV threshold limits until the target is ' \
+                   'highly visible and the rest of the image is mostly masked.'
+        kp_reset = 'Press \'r\' to reset trackbar positions.'
+        kp_accept = 'Press SPACE to accept adjusted values.'
+        kp_abort = 'Press ESC or \'q\' to abort adjustment.'
+        print('*' * 79, instruct, '', kp_reset, kp_accept, kp_abort, '*' * 79,
+              sep='\n')
+
+        vid_feed = cv2.VideoCapture(self._cam)
+        adj_thresholds = None
+        keypress = -1
+
+        while keypress not in (27, 32, 113):
+            adj_thresholds, keypress = tune_thresholds(vid_feed,
+                                                       self.thresholds)
+
+        if keypress == 32:  # SPACE
+            self.thresholds = adj_thresholds
+            print('SPACE pressed.  Threshold values adjusted.')
+        elif keypress in (27, 113):  # ESC
+            print('ESC or\'q\' pressed.  Adjustment aborted.')
+
+        vid_feed.release()
         return
 
 
@@ -370,11 +372,8 @@ def drag_circle(image):
     """
 
     # initialize window
-    win = 'Select Calibration Targets'
+    win = 'Select Calibration Region'
     cv2.namedWindow(win)
-    cv2.moveWindow(win,
-                   config['windows']['ORIGIN_X'],
-                   config['windows']['ORIGIN_Y'])
 
     # initialize variables
     cb_params = {'drag': None,
@@ -531,6 +530,7 @@ def tune_thresholds(vid_feed, thresholds):
         keypress = cv2.waitKey(5)
 
     cv2.destroyWindow(win)
+    vid_feed.release()
     return thresh_vals, keypress
 
 

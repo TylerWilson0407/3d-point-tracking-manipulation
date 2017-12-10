@@ -27,3 +27,4 @@ constructor then can initialize in calibrate function?
   file variables
  - In class methods, define variables locally(e.g. circle = self._circle, etc)
  to reduce clutter and make code look cleaner
+ - Standardize waitKey delay
