@@ -13,7 +13,7 @@ class Camera:
         self._cam = cam_id
 
         # names for targets - short for index, middle, thumb(fingers)
-        targ_names = ['index', 'middle', 'thumb']
+        targ_names = config['targets']
         self.targets = create_tracking_targets(targ_names, cam_id)
 
         self._cal_count = None
@@ -46,17 +46,21 @@ class Camera:
             cal_check = all([getattr(self.targets[k], 'calibrated')
                              for k in self.targets])
 
-            # iterate through targets and draw circle over calibrated targets
-            if not self._circle_draw.any():
-                self._circle_draw = self._cal_image.copy()
-            for target in self.targets.values():
-                if target.calibrated:
-                    cv2.circle(self._circle_draw,
-                               target.circle[0],
-                               target.circle[1],
-                               target_color(target.thresholds),
-                               -1)
+            self.draw_calib_circle()
 
+    def draw_calib_circle(self):
+        """Iterate through targets and draw circle over calibrated targets."""
+
+        if not self._circle_draw.any():
+            self._circle_draw = self._cal_image.copy()
+        for target in self.targets.values():
+            if target.calibrated:
+                cv2.circle(self._circle_draw,
+                           target.circle[0],
+                           target.circle[1],
+                           target_color(target.thresholds),
+                           -1)
+        return
 
     def _get_cal_frame(self):
         """Capture calibration image from input video feed"""
@@ -75,7 +79,9 @@ class Camera:
 
     def _select_target(self):
         """DOCSTRING"""
-        print('PLACEHOLDER: i, m, or t')
+        # print('PLACEHOLDER: i, m, or t')
+
+        select_target_message(self.targets)
 
         win = 'Choose Calibration Target'
         cv2.namedWindow(win)
@@ -89,18 +95,16 @@ class Camera:
 
         cv2.destroyWindow(win)
 
-        # Can I make this better?
+        # make this better when you have time
         if keypress == 27:  # ESC
             self._cal_count -= 1
         elif keypress == 113:  # 'q'
             self._cal_count = -1
-        elif keypress == 105:  # 'i'
-            self.targets['index'].calibrate(self._cal_image)
-        elif keypress == 109:  # 'm'
-            self.targets['middle'].calibrate(self._cal_image)
-        elif keypress == 116:  # 't'
-            self.targets['thumb'].calibrate(self._cal_image)
-
+        else:
+            for key in self.targets.keys():
+                if chr(keypress) == key[0]:
+                    print('\'{0}\' target selected.'.format(key))
+                    self.targets[key].calibrate(self._cal_image)
         return
 
     def print_instruct(self, message, kp_before=None, kp_after=None):
@@ -222,9 +226,6 @@ def capture_image(vid_feed):
     # initialize window
     win = 'Camera Feed'
     cv2.namedWindow(win)
-    cv2.moveWindow(win,
-                   config['windows']['ORIGIN_X'],
-                   config['windows']['ORIGIN_Y'])
     focus_window(win)
 
     # initialize variables
@@ -238,6 +239,27 @@ def capture_image(vid_feed):
 
     cv2.destroyWindow(win)
     return image, keypress
+
+
+def select_target_message(targets):
+    """Print message for select_target method."""
+    star_line = '*' * 79
+    message = 'Choose target to calibrate.'
+
+    kp_esc = 'Press ESC to return to previous step.'
+    kp_q = 'Press \'q\' to abort calibration procedure.'
+
+    print(star_line, message, '', sep='\n')
+
+    for k, v in targets.items():
+        if not v.calibrated:
+            print('\'{0}\' target NOT CALIBRATED.  Press \'{1}\' to '
+                  'calibrate.'.format(k, k[0]))
+        else:
+            print('\'{0}\' target CALIBRATED.  Press \'{1}\' to '
+                  'recalibrate.'.format(k, k[0]))
+
+    print(kp_esc, kp_q, star_line, sep='\n')
 
 
 # TESTING

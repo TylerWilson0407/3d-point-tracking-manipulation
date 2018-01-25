@@ -8,10 +8,6 @@ variables fetched from the config file
 - Function naming - most of my functions start with get_, better way?
 - Go back and, where possible, replace numpy functions with python built-ins
 where possible, unless when doing array operations(e.g. add vs np.add)
-- Ever OK to define class variable outside constuctor?  For example, cal_count
-variable in TrackingTarget class - always needs to be initialized in calibrate
-function and is not used outside of there.  Should I define as None in
-constructor then can initialize in calibrate function?
  - Use monitor sizes and position for more robust window positioning
  - Separate config into two parts -> adjustable variables for user to adjust,
  and other variables that are more set in stone once completed(print messages,
@@ -20,6 +16,8 @@ constructor then can initialize in calibrate function?
  config dictionary and make modular if possible(e.g. "<function name> aborted")
  - Ask terminate calibration input at each step(press 'q' to quit?)
  - Make return statements consistent - see PEP8
+    - Don't like when a function/method has no return and doesn't auto-indent
+    when going down to next function
  - Should I pull calibration methods out as functions and create wrapper
  methods for them??
  - Add blur adjustment to calibration or keep at set value??
@@ -28,3 +26,21 @@ constructor then can initialize in calibrate function?
  - In class methods, define variables locally(e.g. circle = self._circle, etc)
  to reduce clutter and make code look cleaner
  - Standardize waitKey delay
+ - In camera calibration, when calibrating all targets, how should I kick the
+ calibration back to the camera if ESCing out of the target calibration?
+ - cal_funcs list in Target and Camera calibration -> can I use map() instead?
+ - Go back and underscore class attributes and methods that aren't used outside
+  of their classes
+
+  BIG TO-DOS:
+  - Go back and time program/get FPS with/without threading/multiprocessing
+    - Be able to say "Used multiprocessing to do X task Y% faster"
+
+
+ LESSONS, CHALLENGES & IMPLEMENTATIONS:
+ - Unsynchronized stereo webcams.  Solution: Implement threading to create
+ separate threads for each camera that constant stream video and allow the
+ latest frame to be grabbed.
+
+ QUESTIONS FOR SMART PEOPLE:
+ -

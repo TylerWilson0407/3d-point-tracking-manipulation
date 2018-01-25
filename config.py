@@ -5,42 +5,57 @@ with open('config.json', 'r') as f:
 
 
 def config_build():
-    config = {}
+    conf = {
 
-    # Device IDs for cameras
-    config['cameras'] = [0, 2]
+        # Chessboard parameters
+        'chessboard': {'dist': 23.3,  # mm between corners
+                       'hor_sq': 8,  # horizontal # of squares
+                       'ver_sq': 6},
 
-    # three tracking targets
-    config['targets'] = ['pos',  # positioning target
-                         'ori',  # orienting target
-                         'sta']  # stabilizing target
+        # Number of frames to capture for stereo camera calibration
+        'stereo_calib': {'num_frames': 20},
 
-    # WINDOW SETTINGS
-    config['windows'] = {'ORIGIN_X': 1440,
-                         'ORIGIN_Y': 0}
+        # Device IDs for cameras
+        'cameras': [0, 1],
 
-    # ROI SETTINGS
-    config['roi'] = {'ADJUST_SCALE': 2,
-                     'PADDING': 1.5}
+        # Multiprocessing SETTINGS
+        # set number of processes for multiprocessing, 0 will use number of
+        # cores on machine
+        'multiprocessing': {'processes': 0},
 
-    # find_circle SETTINGS
-    config['find_circle'] = {'BLUR_K': 1,
-                             'HOUGH_DP': 1.2,
-                             'HOUGH_PARAM1': 150,
-                             'HOUGH_PARAM2': 1}
+        # three tracking targets
+        # RULES: Don't have any target names starting with 'q' and have each
+        # target name start with a different letter
+        'targets': ['index',
+                    'middle',
+                    'thumb'],
 
-    # hsv percentile threshold SETTINGS
-    config['thresh_percs'] = [[5, 95],  # (H_LO, H_HI)
-                              [5, 95],  # (S_LO, S_HI)
-                              [5, 95]]  # (V_LO, V_HI)
+        # WINDOW SETTINGS
+        'windows': {'ORIGIN_X': 1440, 'ORIGIN_Y': 0},
 
-    # initial 'k' value for image blurring
-    config['blur_k'] = {'initial': 10,
-                        'max': 20}
+        # ROI SETTINGS
+        'roi': {'ADJUST_SCALE': 2,
+                'PADDING': 1.5},
 
+        # find_circle SETTINGS
+        'find_circle': {'BLUR_K': 1,
+                        'HOUGH_DP': 1.2,
+                        'HOUGH_PARAM1': 150,
+                        'HOUGH_PARAM2': 1},
+
+        # hsv percentile threshold SETTINGS
+        'thresh_percs': [[5, 95],  # (H_LO, H_HI)
+                         [5, 95],  # (S_LO, S_HI)
+                         [5, 95]],
+
+        # initial 'k' value for image blurring
+        'blur_k': {'initial': 10,
+                   'max': 20}
+
+    }
 
     with open('config.json', 'w') as file:
-        json.dump(config, file)
+        json.dump(conf, file)
 
 
 if __name__ == "__main__":

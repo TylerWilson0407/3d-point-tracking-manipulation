@@ -1,5 +1,6 @@
 from config import config
 import cv2
+import imutils
 import numpy as np
 from subprocess import call
 import sys
@@ -31,7 +32,7 @@ class Target:
         # attribute for checking if target has been calibrated
         self.calibrated = None
 
-    def calibrate(self, image=None):
+    def calibrate(self, image=np.empty(0)):
         """Calibrate the tracking target.  Captures an image from the video
         feed and allows the user to drag a circular region of interest where
         the target is and finely adjust it.  Once the circular ROI is
@@ -46,7 +47,7 @@ class Target:
         self.calibrated = False
         self._vid_feed = cv2.VideoCapture(self._cam)
 
-        if not image.any():
+        if not image.size:
             start_count = self._cal_count = 0
         else:
             start_count = self._cal_count = 1
@@ -347,9 +348,6 @@ def capture_image(vid_feed):
     # initialize window
     win = 'Camera Feed'
     cv2.namedWindow(win)
-    cv2.moveWindow(win,
-                   config['windows']['ORIGIN_X'],
-                   config['windows']['ORIGIN_Y'])
     focus_window(win)
 
     # initialize variables
@@ -554,5 +552,5 @@ def modify_thresholds(vid_feed, image, circle):
 if __name__ == "__main__":
     cam = config['cameras'][0]
     target = Target(cam)
-    target.calibrate(cam)
+    target.calibrate()
     target.adjust_thresholds()
