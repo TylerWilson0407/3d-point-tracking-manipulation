@@ -25,7 +25,8 @@ def config_build():
 
         # three tracking targets
         # RULES: Don't have any target names starting with 'q' and have each
-        # target name start with a different letter
+        # target name start with a different letter(this is due to how
+        # keypress inputs are used in the calibration process)
         'targets': ['index',
                     'middle',
                     'thumb'],

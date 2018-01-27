@@ -31,6 +31,10 @@ where possible, unless when doing array operations(e.g. add vs np.add)
  - cal_funcs list in Target and Camera calibration -> can I use map() instead?
  - Go back and underscore class attributes and methods that aren't used outside
   of their classes
+ - Create ASCII dictionary for dealing with keypresses(keypress =
+ ascii_dict['esc'] vs keypress = 27)
+ - Save calibration data and add checks to ask if you want to recalibrate or
+ use existing calibration data
 
   BIG TO-DOS:
   - Go back and time program/get FPS with/without threading/multiprocessing

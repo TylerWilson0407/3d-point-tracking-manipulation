@@ -1,51 +1,73 @@
 """DOCSTRING"""
 from config import config
 import cv2
+from imutils.video import WebcamVideoStream
 import numpy as np
 import time
 
 
-def Class():
-    def __init__(self):
-        pass
+class Chessboard:
+    def __init__(self, hor_sq, ver_sq, num_frames):
+        self.dims = (hor_sq, ver_sq)
+        self.num_frames = num_frames
 
 
-def chessboard_cap(cam_ids):
+def chessboard_cap(cam_ids, chessboard):
     """Capture frames from input cameras containing a chessboard calibration
     rig in order to calibrate the intrinsic and extrinsic parameters of the
     camera setup.
     """
 
-    vid_feeds = []
+    streams = initialize_streams(cam_ids)
+    windows = initialize_windows(cam_ids)
+
+    frames = []
+
+    while len(frames) > chessboard.num_frames:
+
+        images, keypress = capture_multi(streams, windows)
+
+
+
+    return
+
+
+def initialize_streams(cam_ids):
+    """Initialize webcam streams on input cameras.  Uses multithreading to
+    prevent camera desync due to camera buffers."""
+
+    streams = []
+    for cam in cam_ids:
+        streams.append(WebcamVideoStream(cam).start())
+
+    return streams
+
+
+def initialize_windows(cam_ids):
+    """Initialize windows for camera video feeds."""
+
     windows = []
-    for i, cam in enumerate(cam_ids):
-        vid_feeds.append(cv2.VideoCapture(cam))
-        windows.append('Camera ' + str(i))
-        cv2.namedWindow(windows[i])
+    for cam in cam_ids:
+        win_name = 'Camera ' + str(cam)
+        windows.append(win_name)
+        cv2.namedWindow(win_name)
+
+    return windows
 
 
-    chess = config['chessboard']
-    chess_dims = (chess['hor_sq'], chess['ver_sq'])
-    frames = config['stereo_calib']['num_frames']
-
-    capture_multi(vid_feeds, windows)
-
-    cv2.waitKey(0)
-
-
-def capture_multi(vid_feeds, windows):
+def capture_multi(streams, windows):
     """Displays videos from multiple input feeds and waits for a keypress to
     capture images.  Returns captured images and keypress.
     """
 
     # initialize variables
-    images = [None] * len(vid_feeds)
+    images = [None] * len(streams)
     keypress = -1
 
     while keypress == -1:
 
-        for feed, image, win in zip(vid_feeds, images, windows):
-            __, image = feed.read()
+        for stream, image, win in zip(streams, images, windows):
+            image = stream.read()
             cv2.imshow(win, image)
         keypress = cv2.waitKey(5)
 
@@ -53,5 +75,5 @@ def capture_multi(vid_feeds, windows):
 
 
 if __name__ == "__main__":
-    cam_ids = config['cameras']
-    chessboard_cap(cam_ids)
+    cams = config['cameras']
+    chessboard_cap(cams)

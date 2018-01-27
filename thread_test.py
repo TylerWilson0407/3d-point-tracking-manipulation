@@ -1,10 +1,10 @@
 import cv2
+from imutils.video import WebcamVideoStream
 import numpy as np
 from threading import Thread
 import time
 
-
-class CamStream:
+class WebcamVideoStream:
     """Utilizes separate thread to stream video from multiple cameras to
     reduce latency."""
     def __init__(self, cam_idx):
@@ -47,8 +47,8 @@ if __name__ == "__main__":
     cv2.namedWindow(win1)
     cv2.namedWindow(win2)
 
-    stream1 = CamStream(0).start()
-    stream2 = CamStream(1).start()
+    stream1 = WebcamVideoStream(0).start()
+    stream2 = WebcamVideoStream(1).start()
 
     while cv2.waitKey(5) == -1:
         img1 = stream1.read()
