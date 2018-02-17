@@ -8,12 +8,13 @@ def config_build():
     conf = {
 
         # Chessboard parameters
+        # Note that chessboard dims needs to be tuple but tuples are not
+        # preserved with JSON.  Need to convert to tuple after
         'chessboard': {'dist': 23.3,  # mm between corners
-                       'hor_sq': 8,  # horizontal # of squares
-                       'ver_sq': 6},
+                       'dims': [8, 6]},  # (horiz squares, vert squares)
 
         # Number of frames to capture for stereo camera calibration
-        'stereo_calib': {'num_frames': 20},
+        'stereo_cal_frames': 20,
 
         # Device IDs for cameras
         'cameras': [0, 1],

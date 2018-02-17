@@ -67,14 +67,14 @@ class Camera:
 
         instruct = 'Hold up calibration target(s) and press SPACE to ' \
                    'capture image.'
-        self.print_instruct(instruct)
+        self._print_instruct(instruct)
 
         vid_feed = cv2.VideoCapture(self._cam)
 
         self._cal_image, keypress = capture_image(vid_feed)
 
         # adjust procedure counter
-        self.keypress_go_to(keypress)
+        self._keypress_go_to(keypress)
         return
 
     def _select_target(self):
@@ -107,7 +107,7 @@ class Camera:
                     self.targets[key].calibrate(self._cal_image)
         return
 
-    def print_instruct(self, message, kp_before=None, kp_after=None):
+    def _print_instruct(self, message, kp_before=None, kp_after=None):
         """Prints instructions for calibration procedure step."""
         print('*' * 79)
         print(message)
@@ -136,7 +136,7 @@ class Camera:
 
         return
 
-    def keypress_go_to(self, keypress):
+    def _keypress_go_to(self, keypress):
         """Print a message and adjust procedure counter based on keyboard
         input(SPACE, ESC, or 'Q').  Option parameters allow for custom
         messages to print, otherwise a default is used

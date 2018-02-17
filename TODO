@@ -34,7 +34,9 @@ where possible, unless when doing array operations(e.g. add vs np.add)
  - Create ASCII dictionary for dealing with keypresses(keypress =
  ascii_dict['esc'] vs keypress = 27)
  - Save calibration data and add checks to ask if you want to recalibrate or
- use existing calibration data
+ use existing calibration data, and whether to save data after calibration
+ - Find where config dict is used and remove from functions and replace with
+ function parameters(use config values when calling functions instead)
 
   BIG TO-DOS:
   - Go back and time program/get FPS with/without threading/multiprocessing
@@ -45,6 +47,9 @@ where possible, unless when doing array operations(e.g. add vs np.add)
  - Unsynchronized stereo webcams.  Solution: Implement threading to create
  separate threads for each camera that constant stream video and allow the
  latest frame to be grabbed.
+ - Can't preserve tuple with JSON.  Learned after I needed tuple for function
+ parameter but JSON dict was outputting list(chess dimensions for cv2
+ .findChessboardCorners)
 
  QUESTIONS FOR SMART PEOPLE:
  -

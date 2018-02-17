@@ -47,6 +47,7 @@ class Target:
         self.calibrated = False
         self._vid_feed = cv2.VideoCapture(self._cam)
 
+        # check if image is input as a parameter and skip image capture if so
         if not image.size:
             start_count = self._cal_count = 0
         else:
@@ -107,7 +108,7 @@ class Target:
     def _get_thresholds(self):
         """finds preliminary threshold values by analyzing pixels
         within selected circle and getting limits based on lower and
-        upper percentile values.  Then displays thresholded HSV binary and
+        upper percentile values.  Then displays threshold HSV binary and
         allows user to adjust threshold limits.
         """
 
