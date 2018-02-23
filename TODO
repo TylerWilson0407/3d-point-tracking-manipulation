@@ -37,6 +37,12 @@ where possible, unless when doing array operations(e.g. add vs np.add)
  use existing calibration data, and whether to save data after calibration
  - Find where config dict is used and remove from functions and replace with
  function parameters(use config values when calling functions instead)
+ - Consistent messages(quit vs. abort, etc)
+ - (UNSURE ABOUT THIS ONE)Pull dictionary parameters from functions and input
+ just the values instead to avoid needing a specific data structure as an input
+ (e.g. instead of a 'chessboard' dict as inputs with corner spacing and number
+ of horiz/vert squares as entries, just have the spacing and squares and
+ parameters to the function)
 
   BIG TO-DOS:
   - Go back and time program/get FPS with/without threading/multiprocessing
