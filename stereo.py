@@ -5,6 +5,7 @@ from imutils.video import WebcamVideoStream
 import numpy as np
 import pickle
 from subprocess import call
+import stereovision.calibration
 import sys
 import time
 
@@ -72,6 +73,65 @@ def chessboard_cap(cam_ids, chessboard, num_frames):
         frame_sizes.append(size)
 
     return corner_list, frame_sizes
+
+
+def capture_chessboard_images(cam_ids, chessboard, num_frames):
+    """Capture frames from input cameras of chessboard calibration rig."""
+
+    stream_prefix = 'Camera'
+    cap_prefix = 'Capture'
+
+    streams = initialize_streams(cam_ids)
+    stream_windows = initialize_windows(stream_prefix, cam_ids)
+    cap_windows = initialize_windows(cap_prefix, cam_ids)
+
+    focus_window(stream_windows[0])
+
+    frames = []
+
+    while len(frames) < num_frames:
+
+        capture_instruct(len(frames), num_frames)
+        images, keypress = capture_multi(streams, stream_windows)
+        retvals, corners = find_corners(images, cap_windows,
+                                        tuple(chessboard['dims']))
+
+        # clean this up???
+        if keypress == 32:  # SPACE
+            if all(retvals):
+                frames.append(images)
+            else:
+                print('*' * 79)
+                print('Not all corners found, recapture.')
+        elif keypress == 27:  # ESC
+            if len(frames) > 0:
+                frames.pop()
+            else:
+                print('Aborting.')
+                return
+        elif keypress == 113:  # 'q'
+            print('Aborting.')
+            return
+
+    return frames
+
+
+def calibrate_cams2(chessboard, frames_list):
+    """DOCSTRING"""
+
+    calib_params = [chessboard['dims'][1],
+                    chessboard['dims'][0],
+                    chessboard['dist'],
+                    frames_list[0][0].shape]
+
+    calibrator = stereovision.calibration.StereoCalibrator(*calib_params)
+
+    for frames in frames_list:
+        calibrator.add_corners(frames)
+
+    calibration = calibrator.calibrate_cameras()
+
+    return calibration
 
 
 def initialize_streams(cam_ids):
@@ -174,7 +234,6 @@ def calibrate_cams(chessboard, corner_list, frame_sizes):
     dist_coeffs = []
 
     for corners, frame_size in zip(corner_list, frame_sizes):
-
         __, cam_mat, dist_coeff, __, __ = \
             cv2.calibrateCamera(real_pts,
                                 corners,
@@ -188,8 +247,19 @@ def calibrate_cams(chessboard, corner_list, frame_sizes):
     # more stereo calibrations would be needed(i.e. calibrate 1 -> 2,
     # calibrate 2 -> 3, etc).  Will maybe add this functionality later.
 
-    __, cam_mats[0], dist_coeffs[0], cam_mats[1], dist_coeffs[1], rot_mat, \
-        trans_mat, ess_mat, fund_mat \
+    # __, cam_mats[0], dist_coeffs[0], cam_mats[1], dist_coeffs[1], rot_mat, \
+    #     trans_mat, ess_mat, fund_mat \
+    #     = cv2.stereoCalibrate(real_pts,
+    #                           corner_list[0],
+    #                           corner_list[1],
+    #                           cam_mats[0],
+    #                           dist_coeffs[0],
+    #                           cam_mats[1],
+    #                           dist_coeffs[1],
+    #                           tuple(frame_sizes[0]),
+    #                           flags=cv2.CALIB_FIX_INTRINSIC)
+
+    __, __, __, __, __, rot_mat, trans_mat, ess_mat, fund_mat \
         = cv2.stereoCalibrate(real_pts,
                               corner_list[0],
                               corner_list[1],
@@ -199,6 +269,9 @@ def calibrate_cams(chessboard, corner_list, frame_sizes):
                               dist_coeffs[1],
                               tuple(frame_sizes[0]),
                               flags=cv2.CALIB_FIX_INTRINSIC)
+
+    print(rot_mat)
+    print(trans_mat)
 
     rect = [None] * 2
     proj = [None] * 2
@@ -211,6 +284,9 @@ def calibrate_cams(chessboard, corner_list, frame_sizes):
                           tuple(frame_sizes[0]),
                           rot_mat,
                           trans_mat)[:4]
+
+    print(rect[0], '\n', rect[1])
+    print(proj[0], '\n', proj[1])
 
     return cam_mats, dist_coeffs, rect, proj
 
@@ -231,23 +307,33 @@ def chessboard_points(chessboard):
 
     return points
 
-def show_undistorted(cam_ids, cam_mats, dist_coeffs, rect, proj, frame_sizes):
+
+def show_undistorted(cam_ids, cam_mats, dist_coeffs, rect, proj, frame_size):
     """Computes undistortion and rectification maps and remaps camera
     outputs to show a stereo undistorted image."""
 
-    map1 = map2 = udist = [None] * len(cam_mats)
+    print(frame_size)
+    empty_mat = np.empty(tuple(frame_size))
+    map1 = [empty_mat for __ in range(len(cam_mats))]
+    map2 = [empty_mat for __ in range(len(cam_mats))]
+    udists = [empty_mat for __ in range(len(cam_mats))]
 
-    for i, (cam, dist, r, p, size) in enumerate(zip(cam_mats,
+    for i, (cam, dist, r, p) in enumerate(zip(cam_mats,
                                                     dist_coeffs,
                                                     rect,
-                                                    proj,
-                                                    frame_sizes)):
+                                                    proj)):
         map1[i], map2[i] = cv2.initUndistortRectifyMap(cam,
                                                        dist,
                                                        r,
                                                        p,
-                                                       tuple( size),
+                                                       tuple(frame_size),
                                                        cv2.CV_32FC1)
+
+    print(map1[0][10][255])
+    print(map1[0].shape)
+    print(map1[1].shape)
+    print(map2[0].shape)
+    print(map2[1].shape)
 
     stream_prefix = 'Camera'
 
@@ -257,30 +343,57 @@ def show_undistorted(cam_ids, cam_mats, dist_coeffs, rect, proj, frame_sizes):
     focus_window(stream_windows[0])
 
     keypress = -1
+    incr = 0
 
     while keypress == -1:
 
         for i, (stream, m1, m2) in enumerate(zip(streams, map1, map2)):
-            image = stream.read()
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            cv2.imshow(stream_windows[i], image)
+            cap = stream.read()
+            cap = cv2.cvtColor(cap, cv2.COLOR_BGR2GRAY)
+            cv2.imshow(stream_windows[i], cap)
 
-            udist[i] = image
-            cv2.remap(image, m1, m2, cv2.INTER_LINEAR, udist[i])
+            cv2.remap(cap, m1, m2, cv2.INTER_LINEAR, udists[i])
+            # udists[i] = cv2.remap(cap, m1, m2, cv2.INTER_LINEAR)
 
-        udist_join = np.zeros((max(image.shape[0] for image in udist),
-                              sum(image.shape[1] for image in udist)),
-                              np.uint8)
+        print(udists[0].shape)
+
+        udist_join = np.zeros((frame_size[0] * len(udists),
+                              frame_size[1]), np.uint8)
+
+        print(udist_join.shape)
 
         x_orig = 0
 
-        for image in udist:
-            udist_join[:image.shape[0], x_orig:x_orig + image.shape[1]] = image
-            x_orig += image.shape[1]
-
-        # print(udist_join)
+        for udist in udists:
+            udist_join[:udist.shape[0], x_orig:x_orig + udist.shape[1]] = udist
+            x_orig += udist.shape[1]
 
         cv2.imshow('Stereo Images', udist_join)
+
+        keypress = cv2.waitKey(5)
+
+    return
+
+
+def show_undistort_single(cam_id, cam_mat, dist_coeff):
+    """Display undistorted image"""
+
+    stream_prefix = 'Camera'
+
+    streams = initialize_streams(cam_id)
+    stream_windows = initialize_windows(stream_prefix, cam_id)
+
+    focus_window(stream_windows[0])
+
+    keypress = -1
+
+    while keypress == -1:
+        image = streams[0].read()
+
+        dst = cv2.undistort(image, cam_mat, dist_coeff)
+
+        cv2.imshow(stream_windows[0], dst)
+        cv2.imshow('img', image)
 
         keypress = cv2.waitKey(5)
 
@@ -316,4 +429,4 @@ if __name__ == "__main__":
                      dist_coeffs,
                      rect,
                      proj,
-                     fs)
+                     fs[0])
