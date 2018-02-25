@@ -5,7 +5,6 @@ from imutils.video import WebcamVideoStream
 import numpy as np
 import pickle
 from subprocess import call
-import stereovision.calibration
 import sys
 import time
 
