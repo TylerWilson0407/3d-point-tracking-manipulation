@@ -1,7 +1,7 @@
 Fixes & Improvements
 - For select_circle routine and subroutines, add messages with how to proceed
 or escape functions, as well as improving how to "escape" them, with error
-handling and print statements stating if the process was quit/interupted and
+handling and print statements stating if the process was quit/interrupted and
 maybe the output if finished.
 - Change settings for lines/circles/anything from hardcoded values to
 variables fetched from the config file
@@ -43,6 +43,10 @@ where possible, unless when doing array operations(e.g. add vs np.add)
  (e.g. instead of a 'chessboard' dict as inputs with corner spacing and number
  of horiz/vert squares as entries, just have the spacing and squares and
  parameters to the function)
+ - Should I restructure certain functions that take different number of inputs?
+ e.g. chessboard_cap, which returns corner_list for each cameras.  Have run
+ into issues where when using one camera, gets confusing to have to use
+ corner_list[0], since the actual data I need is nested in a list.
 
   BIG TO-DOS:
   - Go back and time program/get FPS with/without threading/multiprocessing
@@ -56,6 +60,20 @@ where possible, unless when doing array operations(e.g. add vs np.add)
  - Can't preserve tuple with JSON.  Learned after I needed tuple for function
  parameter but JSON dict was outputting list(chess dimensions for cv2
  .findChessboardCorners)
+ - DESIGN -> Use standalone functions vs. class methods where possible for
+ code reuse purposes.  Obviously not doable if you need to manipulate class
+ attributes within the method/function.  If you want to call a function as a
+  class method(e.g. Camera.calibrate), see if you can write as a standalone
+  function, then create a class method wrapper than feeds in attributes,
+  then sets attributes after function returns required data.
+  - Garbage data from stereoCalibrate -> investigate and report!
+  - Garbage data from stereoCalibrate: ended up calibrating each camera
+  separately to get intrinsic parameters.  Then calibrated the stereo camera
+   afterwards.  Was still getting garbage parameters until I did the stereo
+   calibration with 1 image(vs. the 20 I was using previously).  I think
+   this makes sense as while you need many images to get intrinsic
+   parameters, you should really only need one image across both cameras to
+   locate them relative to each other.  FINALLY!!!
 
  QUESTIONS FOR SMART PEOPLE:
  -

@@ -10,14 +10,14 @@ def config_build():
         # Chessboard parameters
         # Note that chessboard dims needs to be tuple but tuples are not
         # preserved with JSON.  Need to convert to tuple after
-        'chessboard': {'dist': 23.3,  # mm between corners
+        'chessboard': {'spacing': 25,  # mm between corners
                        'dims': [8, 6]},  # (horiz squares, vert squares)
 
         # Number of frames to capture for stereo camera calibration
-        'stereo_cal_frames': 20,
+        'stereo_cal_frames': 1,
 
         # Device IDs for cameras
-        'cameras': [0, 1],
+        'cam_ids': [0, 1],
 
         # Multiprocessing SETTINGS
         # set number of processes for multiprocessing, 0 will use number of
