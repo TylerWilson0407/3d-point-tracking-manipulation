@@ -47,6 +47,7 @@ where possible, unless when doing array operations(e.g. add vs np.add)
  e.g. chessboard_cap, which returns corner_list for each cameras.  Have run
  into issues where when using one camera, gets confusing to have to use
  corner_list[0], since the actual data I need is nested in a list.
+ - Move windows automatically
 
   BIG TO-DOS:
   - Go back and time program/get FPS with/without threading/multiprocessing
@@ -74,6 +75,13 @@ where possible, unless when doing array operations(e.g. add vs np.add)
    this makes sense as while you need many images to get intrinsic
    parameters, you should really only need one image across both cameras to
    locate them relative to each other.  FINALLY!!!
+   - Sometimes get 'Device or resource busy' error, which seems to stem from
+    killing camera streams then initializing them rapidly.  I'm guessing
+    that when kill_streams function is executed and the streams are stopped,
+     since they are running in their own threads, the initialize_stream
+     functions may attempt to restart the streams before they are killed.
+     SOLUTION:
+     -
 
  QUESTIONS FOR SMART PEOPLE:
  -

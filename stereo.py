@@ -245,14 +245,16 @@ def capture_instruct(current_frame, total_frames):
     print('*' * 79)
     print('{0}/{1} frames captured.'.format(current_frame, total_frames))
     print('')
-    print('Press SPACE to capture.')
+    if current_frame < total_frames:
+        print('Press SPACE to capture.')
+    else:
+        print('Press SPACE to finish capturing frames.')
     print('Press ESC to go back one frame.')
     print('Press \'q\' to quit.')
 
     return
 
 
-# move into Stereo class as method once calibration process is debugged
 def chessboard_cap(cameras, chessboard, num_frames):
     """Capture frames from input cameras containing a chessboard calibration
     rig in order to calibrate the intrinsic and extrinsic parameters of the
@@ -274,7 +276,7 @@ def chessboard_cap(cameras, chessboard, num_frames):
     frames = []
     corner_list = []
 
-    while len(frames) < num_frames:
+    while len(frames) <= num_frames:
 
         capture_instruct(len(frames), num_frames)
         images, keypress = capture_image(streams, stream_windows)
@@ -283,7 +285,9 @@ def chessboard_cap(cameras, chessboard, num_frames):
 
         # clean this up???
         if keypress == 32:  # SPACE
-            if all(retvals):
+            if len(frames) == num_frames:
+                break
+            elif all(retvals):
                 frames.append(images)
                 corner_list.append(corners)
             else:
@@ -298,8 +302,6 @@ def chessboard_cap(cameras, chessboard, num_frames):
         elif keypress == 113:  # 'q'
             print('Aborting.')
             return
-
-    show_image(images, stream_windows)
 
     kill_streams(streams)
 
