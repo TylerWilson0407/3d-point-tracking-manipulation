@@ -67,14 +67,15 @@ def kill_streams(streams):
 
     for stream in streams:
         stream.stop()
-        while not stream.stream.isOpened():
-            return
+
     return
 
 
 if __name__ == "__main__":
     cameras = initialize_cameras([0, 1])
     streams = initialize_streams(cameras)
-    streams = initialize_streams(cameras)
     kill_streams(streams)
-    # streams = initialize_streams(cameras)
+    print('waiting')
+    # time.sleep(4)
+    streams = initialize_streams(cameras)
+    print(streams[0].read())

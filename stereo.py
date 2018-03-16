@@ -537,9 +537,9 @@ def show_rectified(cameras, rect, proj, map1, map2):
             udist_join[:udist.shape[0], x_orig:x_orig + udist.shape[1]] = udist
             x_orig += udist.shape[1]
 
-        # cv2.imshow('Stereo Images', udist_join)
-        cv2.imshow('Stereo Images 0', udists[0])
-        cv2.imshow('Stereo Images 1', udists[1])
+        cv2.imshow('Stereo Images', udist_join)
+        # cv2.imshow('Stereo Images 0', udists[0])
+        # cv2.imshow('Stereo Images 1', udists[1])
 
         keypress = cv2.waitKey(5)
 
@@ -754,7 +754,7 @@ if __name__ == "__main__":
 
     map1, map2 = get_rect_maps(cameras, rect, proj)
 
-    # show_rectified(cameras, rect, proj, map1, map2)
+    show_rectified(cameras, rect, proj, map1, map2)
 
     print(cameras[0].size)
     print(map1[0].size)
