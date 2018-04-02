@@ -70,7 +70,7 @@ class Target:
                    'capture image.'
         self._print_instruct(instruct)
 
-        self._cal_image, keypress = capture_image(self._vid_feed)
+        self._cal_image, keypress = capture_targets(self._vid_feed)
 
         # adjust procedure counter
         self._keypress_go_to(keypress)
@@ -208,7 +208,6 @@ class Target:
         return
 
 
-# noinspection PyUnusedLocal
 def circle_mouse_callback(event, x, y, flags, params):
     """Mouse callback function for selecting a circle on a frame by dragging
     from the center to the edge"""
@@ -341,7 +340,7 @@ def focus_window(win):
     return
 
 
-def capture_image(vid_feed):
+def capture_targets(vid_feed):
     """Displays video from input feed and waits for a keypress to capture an
     image.  Returns captured image and keypress.
     """

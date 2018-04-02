@@ -7,6 +7,8 @@ with open('config.json', 'r') as f:
 def config_build():
     conf = {
 
+        'calib_data_filename': 'calibration_data',
+
         # Chessboard parameters
         # Note that chessboard dims needs to be tuple but tuples are not
         # preserved with JSON.  Need to convert to tuple after
@@ -14,7 +16,8 @@ def config_build():
                        'dims': [8, 6]},  # (horiz squares, vert squares)
 
         # Number of frames to capture for stereo camera calibration
-        'stereo_cal_frames': 1,
+        'calib_frame_count': {'intrinsic': 20,
+                              'stereo': 1},
 
         # Device IDs for cameras
         'cam_ids': [0, 1],

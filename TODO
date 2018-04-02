@@ -48,6 +48,7 @@ where possible, unless when doing array operations(e.g. add vs np.add)
  into issues where when using one camera, gets confusing to have to use
  corner_list[0], since the actual data I need is nested in a list.
  - Move windows automatically
+ - Check for cameras and find indices automatically?
 
   BIG TO-DOS:
   - Go back and time program/get FPS with/without threading/multiprocessing
@@ -80,8 +81,12 @@ where possible, unless when doing array operations(e.g. add vs np.add)
     that when kill_streams function is executed and the streams are stopped,
      since they are running in their own threads, the initialize_stream
      functions may attempt to restart the streams before they are killed.
-     SOLUTION:
-     -
+     SOLUTION: Added stream as attribute of camera class so that the stream is
+     started when the camera class in initialized.  This way the stream stays
+     active between functions and doesn't need to be stopped and restarted.
+     Also, now instead of saving the Camera objects(since the VideoCapture
+     object in the stream cannot be pickled(saved)), we just save/load the
+     calibration data(cam_mat, dist_coeffs, rot_mat, trans_mat, etc. etc.)
 
  QUESTIONS FOR SMART PEOPLE:
  -

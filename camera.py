@@ -104,7 +104,7 @@ class Camera:
             for key in self.targets.keys():
                 if chr(keypress) == key[0]:
                     print('\'{0}\' target selected.'.format(key))
-                    self.targets[key].calibrate(self._cal_image)
+                    self.targets[key].calibrate_intrinsic(self._cal_image)
         return
 
     def _print_instruct(self, message, kp_before=None, kp_after=None):
