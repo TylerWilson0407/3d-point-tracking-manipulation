@@ -16,7 +16,7 @@ def config_build():
                        'dims': [8, 6]},  # (horiz squares, vert squares)
 
         # Number of frames to capture for stereo camera calibration
-        'calib_frame_count': {'intrinsic': 20,
+        'calib_frame_count': {'intrinsic': 3,
                               'stereo': 1},
 
         # Device IDs for cameras

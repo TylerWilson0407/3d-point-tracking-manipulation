@@ -191,15 +191,6 @@ class Camera:
             self._cal_count = -1
 
 
-class Calibration:
-    """DOCSTRING"""
-
-    def __init__(self, cameras, targets):
-
-        self.cameras = cameras
-
-
-
 class Chessboard:
     """DOCSTRING"""
 
