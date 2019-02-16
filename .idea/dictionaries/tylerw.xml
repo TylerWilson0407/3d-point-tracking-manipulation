@@ -2,8 +2,13 @@
   <dictionary name="tylerw">
     <words>
       <w>calib</w>
+      <w>cvimage</w>
       <w>desync</w>
+      <w>framerate</w>
+      <w>ndarray</w>
       <w>percs</w>
+      <w>pixmap</w>
+      <w>qimage</w>
       <w>webcam</w>
     </words>
   </dictionary>

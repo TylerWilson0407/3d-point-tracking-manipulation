@@ -2,7 +2,7 @@
 from config import config as cf
 import cv2.cv2 as cv2
 from imutils.video import WebcamVideoStream
-import numpy.numpy as np
+import numpy as np
 import os
 import pickle
 from subprocess import call
@@ -11,6 +11,18 @@ import time
 # below are for testing, remove later
 import math
 import matplotlib.pyplot as plt
+
+#PyQt5 testing
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
+
+
+class Calibration:
+    """DOCSTRING"""
+
+    def __init__(self):
+        pass
 
 
 class Camera:
@@ -95,7 +107,7 @@ class Camera:
                    'capture image.'
         self._print_instruct(instruct)
 
-        vid_feed = cv2.VideoCapture(self.id)
+        # vid_feed = cv2.VideoCapture(self.id)
 
         # self._cal_image, keypress = capture_targets(vid_feed)
         self._cal_image, keypress = capture_image(self, 'Camera Feed')
@@ -191,14 +203,6 @@ class Camera:
             self._cal_count = -1
 
 
-class Calibration:
-    """DOCSTRING"""
-
-    def __init__(self, cameras, targets):
-
-        self.cameras = cameras
-
-
 class Chessboard:
     """DOCSTRING"""
 
@@ -260,16 +264,21 @@ class Stereo:
         if os.path.exists(filename):
             data = pickle_load(filename)
 
-            for camera in stereo.cameras:
+            for camera in self.cameras:
                 camera.cam_mat = data['cameras'][camera.id]['cam_mat']
                 camera.cam_mat = data['cameras'][camera.id]['dist_coeff']
 
-            stereo.rot_mat = data['rot_mat']
-            stereo.trans_vec = data['trans_vec']
-            stereo.rect_mat = data['rect_mat']
-            stereo.proj_mat = data['proj_mat']
+            self.rot_mat = data['rot_mat']
+            self.trans_vec = data['trans_vec']
+            self.rect_mat = data['rect_mat']
+            self.proj_mat = data['proj_mat']
         else:
             print('Calibration file not found.  Recalibrate all.')
+
+        return
+
+    def calibrate(self):
+        """DOCSTRING"""
 
         return
 
@@ -1077,7 +1086,6 @@ def modify_thresholds(vid_feed, image, circle):
 
 
 def pickle_dump(filename, data):
-
     with open(filename, 'wb') as fp:
         pickle.dump(data, fp)
 
@@ -1085,7 +1093,6 @@ def pickle_dump(filename, data):
 
 
 def pickle_load(filename):
-
     with open(filename, 'rb') as fp:
         data = pickle.load(fp)
 
@@ -1215,10 +1222,10 @@ def show_remap(cameras, map1, map2):
     while keypress == -1:
 
         for cam, swin, dwin, m1, m2 in zip(cameras,
-                                              stream_windows,
-                                              dst_windows,
-                                              map1,
-                                              map2):
+                                           stream_windows,
+                                           dst_windows,
+                                           map1,
+                                           map2):
             cap = cam.stream.read()
             cap = cv2.cvtColor(cap, cv2.COLOR_BGR2GRAY)
 
@@ -1339,14 +1346,14 @@ def tune_thresholds(vid_feed, thresholds):
 
 # TESTING FUNCTIONS - delete later
 def test_calib_intrinsic_save():
-
     cameras = initialize_cameras(cf['cam_ids'])
 
     chessboard = Chessboard(cf['chessboard']['spacing'],
                             cf['chessboard']['dims'])
 
     for camera in cameras:
-        camera.calibrate_intrinsic(chessboard, cf['calib_frame_count']['intrinsic'])
+        camera.calibrate_intrinsic(chessboard,
+                                   cf['calib_frame_count']['intrinsic'])
 
     # intrinsic_data = {'cameras': cameras}
 
@@ -1391,38 +1398,34 @@ def test_open_corner_data():
     chessboard = chess_cap_data['chessboard']
     corner_list = chess_cap_data['corner_list']
 
-
     return cameras, chessboard, corner_list
 
 
 def test_open_saved(file, key):
-
     with open(file, 'rb') as fp:
         data = pickle.load(fp)
 
     return data[key]
 
 
-def test_rotationMatrixToEulerAngles(R):
-
-    sy = math.sqrt(R[0, 0] * R[0, 0] + R[1, 0] * R[1, 0])
+def test_rotation_mat_to_euler_angles(r_mat):
+    sy = math.sqrt(r_mat[0, 0] * r_mat[0, 0] + r_mat[1, 0] * r_mat[1, 0])
 
     singular = sy < 1e-6
 
     if not singular:
-        x = math.atan2(R[2, 1], R[2, 2])
-        y = math.atan2(-R[2, 0], sy)
-        z = math.atan2(R[1, 0], R[0, 0])
+        x = math.atan2(r_mat[2, 1], r_mat[2, 2])
+        y = math.atan2(-r_mat[2, 0], sy)
+        z = math.atan2(r_mat[1, 0], r_mat[0, 0])
     else:
-        x = math.atan2(-R[1, 2], R[1, 1])
-        y = math.atan2(-R[2, 0], sy)
+        x = math.atan2(-r_mat[1, 2], r_mat[1, 1])
+        y = math.atan2(-r_mat[2, 0], sy)
         z = 0
 
     return np.array([x, y, z])
 
 
 def test_compare_pts(chessboard, corner_list):
-
     real_pts = chessboard.points
     print(real_pts[:, 0])
     print(corner_list[0][0][:, :, 0].T[0])
@@ -1435,6 +1438,11 @@ def test_compare_pts(chessboard, corner_list):
     plt.show()
 
     return
+
+
+# PyQt TESTING
+
+
 
 
 # if __name__ == "__main__":
@@ -1493,16 +1501,16 @@ if __name__ == "__main__":
 
     data_filename = cf['calib_data_filename']
 
-    cameras = initialize_cameras(cf['cam_ids'])
+    cameras1 = initialize_cameras(cf['cam_ids'])
 
-    chessboard = Chessboard(cf['chessboard']['spacing'],
-                            cf['chessboard']['dims'])
+    chessboard1 = Chessboard(cf['chessboard']['spacing'],
+                             cf['chessboard']['dims'])
 
-    stereo = Stereo(cameras, chessboard, cf['calib_frame_count']['stereo'])
+    stereo1 = Stereo(cameras1, chessboard1, cf['calib_frame_count']['stereo'])
 
-    stereo.load_calib_data(data_filename)
+    stereo1.load_calib_data(data_filename)
 
     # test
-    for camera in stereo.cameras:
-        camera.calibrate_intrinsic(stereo.chessboard,
-                                   cf['calib_frame_count']['intrinsic'])
+    for camera1 in stereo1.cameras:
+        camera1.calibrate_intrinsic(stereo1.chessboard,
+                                    cf['calib_frame_count']['intrinsic'])

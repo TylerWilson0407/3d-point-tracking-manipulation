@@ -55,7 +55,10 @@ def config_build():
 
         # initial 'k' value for image blurring
         'blur_k': {'initial': 10,
-                   'max': 20}
+                   'max': 20},
+
+        # fps update interval in seconds
+        'fps_update_interval': 0.2
 
     }
 
